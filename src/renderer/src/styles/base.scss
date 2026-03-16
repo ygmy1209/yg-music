@@ -1,0 +1,153 @@
+/**
+ * 全局基础样式
+ * 使用 CSS 变量定义主题色，方便主题切换
+ */
+
+/* ========== 滚动条样式 ========== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--primary-color-15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 3px;
+  min-height: 30px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-secondary);
+}
+
+/* ========== CSS 变量定义 ========== */
+:root {
+  /* 主题色 */
+  --primary-color: #79e3f1;
+  --primary-dark: #5bc8d8;
+
+  /* 主题色不同透明度 */
+  --primary-color-75: rgba(121, 227, 241, 0.75);
+  --primary-color-50: rgba(121, 227, 241, 0.5);
+  --primary-color-30: rgba(121, 227, 241, 0.3);
+  --primary-color-25: rgba(121, 227, 241, 0.25);
+  --primary-color-20: rgba(121, 227, 241, 0.2);
+  --primary-color-15: rgba(121, 227, 241, 0.15);
+  --primary-color-10: rgba(121, 227, 241, 0.1);
+  --primary-color-35: rgba(121, 227, 241, 0.35);
+  --primary-color-05: rgba(121, 227, 241, 0.05);
+
+  /* 文字颜色 */
+  --text-primary: #333333;
+  --text-secondary: #61666d;
+  --text-icon: #9499a0;
+
+  /* 链接颜色 */
+  --link-color: #007fff;
+
+  /* 强调色 */
+  --pink-color: #ff6699;
+  --danger-color: #ff6b6b;
+
+  /* 背景色 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #eaeaea;
+
+  /* 边框色 */
+  --border-color: #e5e5e5;
+
+  /* 侧边栏背景 */
+  --sidebar-bg: #79e3f1;
+}
+
+/* ========== 基础重置 ========== */
+body {
+  padding: 0;
+  margin: 0;
+  background: rgb(243, 243, 243);
+  font-family: var(--font-family), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  /* 禁用文本选择，防止 Shift+点击时框选文字 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 框选文字样式 */
+::selection {
+  background-color: var(--primary-color);
+  color: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 输入框保持可选 */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ========== 通用样式类 ========== */
+/* 链接样式 */
+.a-link {
+  text-decoration: none;
+  color: var(--link-color);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* 标签样式 */
+.tag {
+  font-size: var(--font-size-xs);
+  border-radius: 3px;
+  padding: 0 5px;
+  margin-right: 5px;
+  font-weight: normal;
+}
+
+/* 文字省略 */
+.text-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 多行文字省略 */
+.text-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ========== 禁止拖拽（用于按钮等可交互元素） ========== */
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ========== 拖拽区域 ========== */
+.drag-area {
+  -webkit-app-region: drag;
+}
+
+/* ========== 禁用动画 ========== */
+.no-animation,
+.no-animation * {
+  transition: none !important;
+  animation: none !important;
+}
