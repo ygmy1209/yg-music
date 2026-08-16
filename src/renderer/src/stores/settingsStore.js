@@ -9,7 +9,7 @@ import { UI } from '@/constants'
 
 // 本地默认值（仅在 IPC 不可用时的降级方案）
 // 注意：必须与 src/main/utils/defaultSetting.js 保持一致，修改时两处同步
-const localDefaults = {
+export const localDefaults = {
   'common.showAnimation': true,
   'common.showRandomAnimation': true,
   'tray.enable': false,

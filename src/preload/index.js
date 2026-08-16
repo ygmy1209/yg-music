@@ -78,7 +78,6 @@ const settingAPI = {
     return () => ipcRenderer.removeListener('setting:changed', handler)
   },
   resizeWindow: (sizeIndex) => ipcRenderer.invoke('window:resize', sizeIndex),
-  setCloseBehavior: (minimizeToTray) => ipcRenderer.send('window:setCloseBehavior', minimizeToTray),
   setTaskProgress: (progress) => ipcRenderer.send('taskbar:progress', progress)
 }
 
