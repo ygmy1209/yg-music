@@ -66,8 +66,8 @@ class Store {
    */
   save() {
     try {
-      // 先写入临时文件
-      const tempPath = this.filePath + '.' + Date.now() + '.tmp'
+      // 先写入临时文件（随机后缀避免同一毫秒内多次保存时路径冲突）
+      const tempPath = `${this.filePath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`
       fs.writeFileSync(tempPath, JSON.stringify(this.data, null, 2), 'utf-8')
 
       // 备份旧文件

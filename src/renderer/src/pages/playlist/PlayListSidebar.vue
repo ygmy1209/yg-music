@@ -87,8 +87,12 @@ const isNameDuplicate = (name) => {
   })
 }
 
+// 同名确认弹窗是否已打开（防止输入框 blur 再次触发 confirmEdit 造成弹窗叠加）
+const isDuplicateConfirmOpen = ref(false)
+
 // 处理失焦事件
 const handleBlur = () => {
+  if (isDuplicateConfirmOpen.value) return
   confirmEdit()
 }
 
@@ -163,6 +167,7 @@ const confirmEdit = async (forceCreate = false) => {
   // 检查名字是否重复（非强制创建时）
   if (!forceCreate && name && isNameDuplicate(name)) {
     // 弹出确认对话框
+    isDuplicateConfirmOpen.value = true
     dialogStore.openDialog({
       component: ConfirmDialogContent,
       props: {
@@ -170,10 +175,12 @@ const confirmEdit = async (forceCreate = false) => {
         cancelText: '不要！',
         confirmText: '是的',
         onConfirm: () => {
+          isDuplicateConfirmOpen.value = false
           // 强制创建
           doConfirmEdit(name)
         },
         onCancel: () => {
+          isDuplicateConfirmOpen.value = false
           // 取消创建
           cancelEdit()
         }
@@ -226,6 +233,7 @@ const cancelEdit = () => {
   editingId.value = null
   editingValue.value = ''
   isNewMode.value = false
+  isDuplicateConfirmOpen.value = false
 }
 
 // ========== 选择歌单 ==========
@@ -251,14 +259,24 @@ const handleContextMenu = (event, playlist) => {
 
   contextMenu.value = {
     show: true,
-    x: event.clientX,
-    y: event.clientY,
+    // 菜单约 110px 宽、130px 高，钳制在视口内避免贴边后溢出
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 118)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 138)),
     playlist
   }
 }
 
 const closeContextMenu = () => {
   contextMenu.value.show = false
+}
+
+// 滚动/缩放/Escape/失焦时关闭菜单，避免菜单停留在过时位置
+const handleContextMenuEscape = (e) => {
+  if (e.key === 'Escape') closeContextMenu()
+}
+
+const handleWindowEvent = () => {
+  closeContextMenu()
 }
 
 // 删除
@@ -289,10 +307,26 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleContextMenuEscape)
+  window.addEventListener('scroll', handleWindowEvent, true)
+  window.addEventListener('resize', handleWindowEvent)
+  window.addEventListener('blur', handleWindowEvent)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleContextMenuEscape)
+  window.removeEventListener('scroll', handleWindowEvent, true)
+  window.removeEventListener('resize', handleWindowEvent)
+  window.removeEventListener('blur', handleWindowEvent)
+
+  // 页面切换时清理尚未确认的临时歌单项，避免空名项残留在其他页面可见
+  if (isNewMode.value) {
+    const tempIndex = playlistStore.playlists.findIndex(p => p.id === editingId.value)
+    if (tempIndex > -1) {
+      playlistStore.playlists.splice(tempIndex, 1)
+    }
+  }
 })
 </script>
 

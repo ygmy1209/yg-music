@@ -79,7 +79,8 @@ export const registerWindowHandlers = () => {
   // 调整窗口尺寸
   ipcMain.handle('window:resize', (event, sizeIndex) => {
     if (mainWindow) {
-      const size = windowSizes[sizeIndex]
+      const index = Math.max(0, Math.min(Number(sizeIndex) || 0, windowSizes.length - 1))
+      const size = windowSizes[index]
       if (size) {
         mainWindow.setSize(size.width, size.height)
         mainWindow.center()

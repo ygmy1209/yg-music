@@ -163,12 +163,14 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('scroll', handleScroll, true)
   window.addEventListener('resize', updateDropdownPosition)
+  window.addEventListener('blur', closeDropdown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('scroll', handleScroll, true)
   window.removeEventListener('resize', updateDropdownPosition)
+  window.removeEventListener('blur', closeDropdown)
 })
 
 watch(isOpen, (open) => {

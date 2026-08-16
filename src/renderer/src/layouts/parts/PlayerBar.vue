@@ -6,7 +6,7 @@
 <template>
   <div class="player-bar">
     <!-- 封面图片 -->
-    <div class="cover-image" @click="playerStore.openDetail">
+    <div class="cover-image" @click="handleOpenDetail">
       <img v-if="playerStore.currentSong?.cover" :src="playerStore.currentSong.cover" alt="封面" />
       <svg v-else xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="placeholder-icon">
         <path d="M9 18V5l12-2v13"/>
@@ -77,7 +77,7 @@
       </button>
 
       <!-- 音量控制 -->
-      <PopupBtn placement="top" trigger="both">
+      <PopupBtn placement="top" trigger="both" :pinned="isVolumeDragging">
         <button class="ctrl-btn" title="音量" @click.stop="playerStore.toggleMute">
           <!-- 静音 -->
           <svg v-if="playerStore.isMute || playerStore.volume === 0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -170,6 +170,15 @@ const progressBarRef = ref(null)
 
 // 音量滑块引用
 const volumeSliderRef = ref(null)
+// 音量拖动状态：拖动期间锁定音量气泡，避免 mouseleave 打断操作
+const isVolumeDragging = ref(false)
+
+// 有歌曲时才打开播放详情页，避免出现空白播放器
+const handleOpenDetail = () => {
+  if (playerStore.currentSong) {
+    playerStore.openDetail()
+  }
+}
 
 // 进度条点击
 const handleProgressClick = (e) => {
@@ -186,6 +195,7 @@ const handleProgressDragStart = (e) => {
 
   document.addEventListener('mousemove', handleProgressDrag)
   document.addEventListener('mouseup', handleProgressDragEnd)
+  window.addEventListener('blur', handleWindowBlur)
 }
 
 // 进度条拖拽中
@@ -207,14 +217,17 @@ const handleProgressDragEnd = () => {
 
   document.removeEventListener('mousemove', handleProgressDrag)
   document.removeEventListener('mouseup', handleProgressDragEnd)
+  window.removeEventListener('blur', handleWindowBlur)
 }
 
 // 音量拖拽开始
 const handleVolumeDragStart = (e) => {
   e.preventDefault()
+  isVolumeDragging.value = true
   handleVolumeDrag(e)
   document.addEventListener('mousemove', handleVolumeDrag)
   document.addEventListener('mouseup', handleVolumeDragEnd)
+  window.addEventListener('blur', handleWindowBlur)
 }
 
 // 音量拖拽中
@@ -227,8 +240,16 @@ const handleVolumeDrag = (e) => {
 
 // 音量拖拽结束
 const handleVolumeDragEnd = () => {
+  isVolumeDragging.value = false
   document.removeEventListener('mousemove', handleVolumeDrag)
   document.removeEventListener('mouseup', handleVolumeDragEnd)
+  window.removeEventListener('blur', handleWindowBlur)
+}
+
+// 窗口失焦时结束拖动（鼠标可能在窗口外松开）
+const handleWindowBlur = () => {
+  if (isDragging.value) handleProgressDragEnd()
+  if (isVolumeDragging.value) handleVolumeDragEnd()
 }
 
 // 添加当前歌曲到歌单
@@ -261,6 +282,7 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', handleProgressDragEnd)
   document.removeEventListener('mousemove', handleVolumeDrag)
   document.removeEventListener('mouseup', handleVolumeDragEnd)
+  window.removeEventListener('blur', handleWindowBlur)
 })
 </script>
 

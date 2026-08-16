@@ -6,11 +6,11 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 test('throttle: 在时间窗口内只执行一次', async () => {
   let count = 0
+  let lastValue = null
   const fn = throttle((value) => {
     count += 1
     lastValue = value
   }, 20)
-  let lastValue = null
 
   fn(1)
   fn(2)
@@ -18,12 +18,29 @@ test('throttle: 在时间窗口内只执行一次', async () => {
   assert.equal(count, 0)
   await sleep(35)
   assert.equal(count, 1)
-  // 节流实现保留首次调用的参数
+  // 默认节流实现保留首次调用的参数
   assert.equal(lastValue, 1)
 
   fn(4)
   await sleep(35)
   assert.equal(count, 2)
+})
+
+test('throttle trailing: 执行窗口内最后一次调用的参数', async () => {
+  let lastValue = null
+  const fn = throttle(
+    (value) => {
+      lastValue = value
+    },
+    20,
+    { trailing: true }
+  )
+
+  fn(1)
+  fn(2)
+  fn(3)
+  await sleep(35)
+  assert.equal(lastValue, 3)
 })
 
 test('debounce: 只执行最后一次调用的参数', async () => {

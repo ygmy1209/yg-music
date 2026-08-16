@@ -169,6 +169,14 @@ const isCtrlPressed = ref(false)
 const isShiftPressed = ref(false)
 
 const handleKeyDown = (e) => {
+  // 输入框内不拦截键盘，避免搜索框的 Ctrl+A 等被抢走
+  const target = e.target
+  const isInput =
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable
+  if (isInput) return
+
   if (e.key === 'Control') isCtrlPressed.value = true
   if (e.key === 'Shift') isShiftPressed.value = true
 
@@ -188,6 +196,13 @@ const handleKeyUp = (e) => {
   if (e.key === 'Shift') isShiftPressed.value = false
 }
 
+// 窗口失焦时重置修饰键状态，避免 Alt-Tab 回来出现“卡 Ctrl/Shift”
+const handleWindowBlur = () => {
+  isCtrlPressed.value = false
+  isShiftPressed.value = false
+  closeContextMenu()
+}
+
 // ========== 排序 ==========
 
 const sortField = computed(() => playlistStore.sortField)
@@ -205,6 +220,7 @@ const handleSort = (field) => {
 
 const tableBodyRef = ref(null)
 const highlightedSongId = computed(() => playlistStore.highlightedSongId)
+let highlightTimer = null
 
 // 滚动到指定歌曲
 const scrollToSong = (songId) => {
@@ -225,7 +241,10 @@ const scrollToSong = (songId) => {
         behavior: 'smooth'
       })
 
-      setTimeout(() => {
+      // 每次高亮只保留最新计时器，避免旧的计时器提前清掉新歌曲的高亮
+      if (highlightTimer) clearTimeout(highlightTimer)
+      highlightTimer = setTimeout(() => {
+        highlightTimer = null
         playlistStore.clearHighlight()
       }, 3000)
       return
@@ -239,6 +258,23 @@ watch(highlightedSongId, async (newId) => {
     scrollToSong(newId)
   }
 })
+
+// 切换歌单或进入搜索筛选时回到顶部，避免沿用上一个列表的滚动位置
+watch(
+  () => playlistStore.currentPlaylistId,
+  () => {
+    tableBodyRef.value?.scrollTo({ top: 0 })
+  }
+)
+
+watch(
+  () => playlistStore.isSearchFiltered,
+  (filtered) => {
+    if (filtered) {
+      tableBodyRef.value?.scrollTo({ top: 0 })
+    }
+  }
+)
 
 // ========== 右键菜单 ==========
 
@@ -280,8 +316,9 @@ const handleContextMenu = (event, song) => {
 
   contextMenu.value = {
     show: true,
-    x: event.clientX,
-    y: event.clientY,
+    // 菜单约 160px 宽、220px 高，钳制在视口内避免贴边后溢出
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 168)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 228)),
     song,
     // 标记是否为批量操作模式（右键的歌曲在选中列表中）
     isBatchMode: playlistStore.isSelected(song.id)
@@ -290,6 +327,15 @@ const handleContextMenu = (event, song) => {
 
 const closeContextMenu = () => {
   contextMenu.value.show = false
+}
+
+// 滚动/缩放/Escape 时关闭菜单，避免菜单停留在过时位置
+const handleContextMenuEscape = (e) => {
+  if (e.key === 'Escape') closeContextMenu()
+}
+
+const handleWindowEvent = () => {
+  closeContextMenu()
 }
 
 // 显示添加到歌单对话框
@@ -416,12 +462,21 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
+  document.addEventListener('keydown', handleContextMenuEscape)
+  window.addEventListener('scroll', handleWindowEvent, true)
+  window.addEventListener('resize', handleWindowEvent)
+  window.addEventListener('blur', handleWindowBlur)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
+  document.removeEventListener('keydown', handleContextMenuEscape)
+  window.removeEventListener('scroll', handleWindowEvent, true)
+  window.removeEventListener('resize', handleWindowEvent)
+  window.removeEventListener('blur', handleWindowBlur)
+  if (highlightTimer) clearTimeout(highlightTimer)
 })
 
 // ========== 播放 ==========
@@ -507,6 +562,9 @@ const handlePlaySong = () => {
       margin: 0 -20px;
       padding: 0 20px;
       transition: background-color 0.2s ease;
+      // 大列表时跳过屏外行的布局与渲染，降低滚动/首屏开销
+      content-visibility: auto;
+      contain-intrinsic-size: auto 44px;
 
       &:hover,
       &.context-active {

@@ -51,8 +51,11 @@ const restorePlayback = async () => {
 
     if (result) {
       console.log('[App] 恢复播放信息成功:', result)
-      // 检查是否需要恢复播放进度
-      if (settingsStore.settings['player.isSavePlayTime']) {
+      // 检查是否需要恢复播放进度；期间用户可能已手动换了歌，此时不再套用旧进度
+      if (
+        settingsStore.settings['player.isSavePlayTime'] &&
+        playerStore.currentSong?.id === savedInfo.songId
+      ) {
         playerStore.setCurrentTime(result.time)
         playerStore.setDuration(result.duration)
       }

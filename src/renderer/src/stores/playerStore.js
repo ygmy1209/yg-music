@@ -54,10 +54,14 @@ export const usePlayerStore = defineStore('player', () => {
 
   // ========== 持久化相关 ==========
 
-  // 节流保存播放信息（5秒内只保存一次）
-  const throttledSavePlayInfo = throttle(async () => {
-    await savePlayInfo()
-  }, 5000)
+  // 节流保存播放信息（5秒内最多保存一次，保留窗口内最后一次调用的参数）
+  const throttledSavePlayInfo = throttle(
+    async () => {
+      await savePlayInfo()
+    },
+    5000,
+    { trailing: true }
+  )
 
   // 保存播放信息
   const savePlayInfo = async () => {
@@ -121,7 +125,11 @@ export const usePlayerStore = defineStore('player', () => {
         songs = await window.dbAPI.getSongsByPlaylist(savedInfo.listId)
       }
 
-      if (!songs || !songs.length) return false
+      if (!songs || !songs.length) {
+        // 恢复失败也要清除标志，否则后续正常点歌会被误判为“恢复中”而不自动播放
+        isRestoring.value = false
+        return false
+      }
 
       const convertedSongs = songs.map(song => ({
         id: song.id,
@@ -149,7 +157,16 @@ export const usePlayerStore = defineStore('player', () => {
       if (targetIndex === -1) {
         if (savedInfo.index + 1 < convertedSongs.length) targetIndex = savedInfo.index + 1
         else if (savedInfo.index - 1 >= 0) targetIndex = savedInfo.index - 1
-        else return false
+        else {
+          isRestoring.value = false
+          return false
+        }
+      }
+
+      // 恢复期间用户已经手动选择了歌曲，则不要覆盖用户操作
+      if (currentSong.value) {
+        isRestoring.value = false
+        return false
       }
 
       // 设置播放来源状态
@@ -207,6 +224,11 @@ export const usePlayerStore = defineStore('player', () => {
   }
   // 播放/暂停切换
   const togglePlay = () => {
+    // 没有可播放歌曲时保持停止状态，避免 UI 卡在“播放中”
+    if (!currentSong.value) {
+      isPlaying.value = false
+      return
+    }
     isPlaying.value = !isPlaying.value
   }
   // 设置播放状态
@@ -412,9 +434,15 @@ export const usePlayerStore = defineStore('player', () => {
   watch(mediaFilter, () => {
     savePlayInfo()
   })
-  // 监听音量变化
+  // 监听音量变化（拖动时会高频触发，走节流避免频繁写盘）
   watch(volume, () => {
-    savePlayInfo()
+    throttledSavePlayInfo()
+  })
+  // 暂停时立即保存一次精确进度，避免节流窗口导致进度回退
+  watch(isPlaying, (playing) => {
+    if (!playing) {
+      savePlayInfo()
+    }
   })
 
   /**

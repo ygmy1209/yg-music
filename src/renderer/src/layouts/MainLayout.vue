@@ -15,10 +15,14 @@
 
       <!-- 内容区域（根据导航切换页面） -->
       <div class="content-area">
-        <PlayListPage v-if="activeNav === 'playlist'" />
-        <AlbumPage v-else-if="activeNav === 'album'" />
-        <SingerPage v-else-if="activeNav === 'singer'" />
-        <SettingsPage v-else-if="activeNav === 'settings'" />
+        <Transition name="page-fade" mode="out-in">
+          <div :key="activeNav" class="page-wrapper">
+            <PlayListPage v-if="activeNav === 'playlist'" />
+            <AlbumPage v-else-if="activeNav === 'album'" />
+            <SingerPage v-else-if="activeNav === 'singer'" />
+            <SettingsPage v-else-if="activeNav === 'settings'" />
+          </div>
+        </Transition>
 
         <!-- 全局对话框遮罩层（默认：仅覆盖 content-area） -->
         <Transition name="overlay">
@@ -163,6 +167,28 @@ watch(activeNav, () => {
   }
 }
 
+// 页面切换：轻量淡入淡出，不做花哨动画
+.page-wrapper {
+  height: 100%;
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-enter-active,
+  .page-fade-leave-active {
+    transition: none;
+  }
+}
+
 // 对话框遮罩 - 默认仅覆盖 content-area
 .dialog-overlay {
   position: absolute;
@@ -188,7 +214,9 @@ watch(activeNav, () => {
   background-color: var(--bg-primary);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  max-height: 80vh;
+  // 小窗口下也不超出视口，给内部滚动留出空间
+  max-width: min(92vw, 920px);
+  max-height: 82vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -223,7 +251,9 @@ watch(activeNav, () => {
   padding: 0 0 20px 0;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  // 小窗口/长内容时允许在弹窗内部滚动，而不是被裁掉
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 // 遮罩过渡动画 - 缓慢出现

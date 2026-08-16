@@ -87,12 +87,19 @@ export const usePlaylistStore = defineStore('playlist', () => {
   }
 
   // 加载歌单中的歌曲
+  // 使用令牌丢弃过期请求：快速连续切换歌单时，旧歌单的结果不能覆盖新歌单
+  let loadSongsToken = 0
+
   const loadSongs = async () => {
+    const token = ++loadSongsToken
+    const listId = currentPlaylistId.value
     try {
-      const songs = await window.dbAPI.getSongsByPlaylist(currentPlaylistId.value)
+      const songs = await window.dbAPI.getSongsByPlaylist(listId)
+      if (token !== loadSongsToken) return
       // 使用转换工具函数
       currentSongs.value = dbToDisplaySongs(songs)
     } catch (error) {
+      if (token !== loadSongsToken) return
       console.error('加载歌曲失败:', error)
       currentSongs.value = []
     }
