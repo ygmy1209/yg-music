@@ -64,3 +64,30 @@ export function parseLrc(lrcText) {
   result.sort((a, b) => a.time - b.time)
   return result
 }
+
+/**
+ * 在已按时间排序的歌词数组中查找当前播放时间对应的行索引
+ * 使用二分查找，返回 time <= currentTime 的最后一个索引
+ * @param {Array<{time: number}>} lines - 已按 time 升序排序的歌词行
+ * @param {number} currentTime - 当前播放时间（秒）
+ * @returns {number} 匹配行索引，无匹配返回 -1
+ */
+export function findLyricIndex(lines, currentTime) {
+  if (!lines || lines.length === 0) return -1
+
+  let low = 0
+  let high = lines.length - 1
+  let answer = -1
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
+    if (lines[mid].time <= currentTime) {
+      answer = mid
+      low = mid + 1
+    } else {
+      high = mid - 1
+    }
+  }
+
+  return answer
+}

@@ -43,12 +43,13 @@ export const useAlbumStore = defineStore('album', () => {
 
   // 加载专辑封面（从每个专辑的第一首歌获取，批量并行优化）
   const loadAlbumCovers = async () => {
-    // 过滤掉未知专辑和空专辑
+    // 过滤掉未知专辑、空专辑和已有封面的专辑，避免反复进入页面时重复请求
     const albumList = albums.value.filter(a =>
       a.name &&
       a.name !== '未知专辑' &&
       a.songs &&
-      a.songs.length > 0
+      a.songs.length > 0 &&
+      !albumCovers.value[a.name]
     )
 
     // 批量并行加载，限制并发数
@@ -59,8 +60,13 @@ export const useAlbumStore = defineStore('album', () => {
     )
   }
 
+  // 进行中的封面加载，避免并发重复请求同一专辑
+  const loadingCovers = new Set()
+
   // 加载单个专辑封面
   const loadAlbumCover = async (albumName, songId) => {
+    if (loadingCovers.has(albumName)) return
+    loadingCovers.add(albumName)
     try {
       const result = await window.musicAPI.getCover(songId)
       if (result.success) {
@@ -68,6 +74,8 @@ export const useAlbumStore = defineStore('album', () => {
       }
     } catch {
       // 静默失败，保持占位图
+    } finally {
+      loadingCovers.delete(albumName)
     }
   }
 

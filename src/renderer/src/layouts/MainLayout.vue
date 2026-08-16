@@ -188,7 +188,9 @@ watch(activeNav, () => {
   background-color: var(--bg-primary);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  max-height: 80vh;
+  // 小窗口下也不超出视口，给内部滚动留出空间
+  max-width: min(92vw, 920px);
+  max-height: 82vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;

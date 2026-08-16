@@ -532,6 +532,9 @@ const handlePlaySong = () => {
       margin: 0 -20px;
       padding: 0 20px;
       transition: background-color 0.2s ease;
+      // 大列表时跳过屏外行的布局与渲染，降低滚动/首屏开销
+      content-visibility: auto;
+      contain-intrinsic-size: auto 44px;
 
       &:hover,
       &.context-active {
