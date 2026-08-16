@@ -123,7 +123,9 @@ export function useHotkeys() {
         // 与默认值合并（确保新增的动作有默认快捷键）
         for (const [key, defaultValue] of Object.entries(defaultKeys)) {
           // 如果用户有自定义设置，则克隆自定义设置，否则使用默认值
-          const userBinding = saved.keys.hasOwnProperty(key) ? saved.keys[key] : defaultValue
+          const userBinding = Object.prototype.hasOwnProperty.call(saved.keys, key)
+            ? saved.keys[key]
+            : defaultValue
           config.keys[key] = userBinding ? { ...userBinding } : null
         }
       }

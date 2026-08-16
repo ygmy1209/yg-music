@@ -148,7 +148,7 @@ function extractLyricsFromNativeTags(nativeTags) {
 
     // 先查找同步歌词
     for (const field of SYNCED_LYRICS_FIELDS) {
-      const lyrics = findLyricsInTags(tags, field, tagType)
+      const lyrics = findLyricsInTags(tags, field)
       if (lyrics) {
         // 检查是否包含时间标签
         const hasTimestamps = /\[\d{2}:\d{2}/.test(lyrics)
@@ -161,7 +161,7 @@ function extractLyricsFromNativeTags(nativeTags) {
 
     // 没找到同步歌词, 查找未同步歌词
     for (const field of UNSYNCED_LYRICS_FIELDS) {
-      const lyrics = findLyricsInTags(tags, field, tagType)
+      const lyrics = findLyricsInTags(tags, field)
       if (lyrics) {
         console.log('[元数据] 从', field, '找到未同步歌词')
         return lyrics
@@ -175,7 +175,7 @@ function extractLyricsFromNativeTags(nativeTags) {
 /**
  * 在标签数组中查找指定字段的歌词
  */
-function findLyricsInTags(tags, field, tagType) {
+function findLyricsInTags(tags, field) {
   // 处理 TXXX:xxx 格式的自定义字段
   if (field.startsWith('TXXX:')) {
     const description = field.slice(5)
@@ -394,7 +394,7 @@ export const getAudioMetadata = async (filePath) => {
       console.log('[元数据] 歌词不是字符串，尝试转换:', typeof lyrics)
       try {
         lyrics = String(lyrics)
-      } catch (e) {
+      } catch {
         lyrics = null
       }
     }
@@ -662,7 +662,7 @@ export const writeMetadata = (filePath, metadata) => {
           if (fs.existsSync(tempPath)) {
             try {
               fs.unlinkSync(tempPath)
-            } catch (e) {
+            } catch {
               // 忽略清理错误
             }
           }

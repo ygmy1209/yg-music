@@ -102,11 +102,9 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useAlbumStore } from '@/stores/albumStore'
-import { usePlaylistStore } from '@/stores/playlistStore'
 import { usePlayerStore } from '@/stores/playerStore'
 
 const albumStore = useAlbumStore()
-const playlistStore = usePlaylistStore()
 const playerStore = usePlayerStore()
 
 // 键盘状态

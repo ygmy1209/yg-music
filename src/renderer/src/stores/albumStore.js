@@ -67,7 +67,7 @@ export const useAlbumStore = defineStore('album', () => {
       if (result.success) {
         albumCovers.value[albumName] = result.data
       }
-    } catch (error) {
+    } catch {
       // 静默失败，保持占位图
     }
   }

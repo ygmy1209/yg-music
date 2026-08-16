@@ -64,8 +64,6 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
-
 const playlistStore = usePlaylistStore()
 const dialogStore = useDialogStore()
 

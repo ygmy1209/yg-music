@@ -153,7 +153,7 @@ export const registerFileHandlers = () => {
     try {
       try {
         await fs.promises.access(filePath)
-      } catch (err) {
+      } catch {
         return { error: '文件不存在', content: null }
       }
       const content = await fs.promises.readFile(filePath, 'utf-8')
@@ -168,7 +168,7 @@ export const registerFileHandlers = () => {
     try {
       try {
         await fs.promises.access(filePath)
-      } catch (err) {
+      } catch {
         return { error: '文件不存在', data: null, mimeType: null }
       }
 

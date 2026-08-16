@@ -77,7 +77,9 @@ export default defaultSetting
 export const mergeSetting = (userSetting = {}) => {
   const result = {}
   for (const [key, defaultValue] of Object.entries(defaultSetting)) {
-    result[key] = userSetting.hasOwnProperty(key) ? userSetting[key] : defaultValue
+    result[key] = Object.prototype.hasOwnProperty.call(userSetting, key)
+      ? userSetting[key]
+      : defaultValue
   }
   return result
 }

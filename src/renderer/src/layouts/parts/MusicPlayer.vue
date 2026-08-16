@@ -347,16 +347,14 @@
  */
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { usePlayerStore } from '@/stores/playerStore'
-import { usePlaylistStore } from '@/stores/playlistStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useHotkeys } from '@/composables/useHotkeys'
 import { formatTime, parseDuration } from '@/utils/formatTime'
 import { parseLrc } from '@/utils/parseLrc'
-import { rgbToHsl, updateThemeColor } from '@/utils/colorUtils'
+import { updateThemeColor } from '@/utils/colorUtils'
 
 // ==================== Stores ====================
 const playerStore = usePlayerStore()
-const playlistStore = usePlaylistStore()
 const settingsStore = useSettingsStore()
 const hotkeys = useHotkeys()
 
@@ -684,12 +682,6 @@ const progressPercent = computed(() => {
   return (currentTime.value / duration.value) * 100
 })
 
-// 歌词对齐方式
-const lyricAlignClass = computed(() => {
-  const align = settingsStore.settings['playDetail.lyricAlign'] || 'center'
-  return `lyric-align-${align}`
-})
-
 // 当前歌曲对象（带安全检查）
 const currentSong = computed(() => {
   if (
@@ -801,7 +793,7 @@ async function loadLyrics() {
       return
     }
     lyrics.value = parseLrc(result.content)
-  } catch (error) {
+  } catch {
     lyrics.value = []
   }
 }
@@ -812,18 +804,6 @@ function getMediaElement() {
     return videoRef.value
   }
   return audioRef.value
-}
-
-// 停止所有媒体元素（用于切换歌曲时确保只有一个在播放）
-function stopAllMedia() {
-  if (audioRef.value) {
-    audioRef.value.pause()
-    audioRef.value.currentTime = 0
-  }
-  if (videoRef.value) {
-    videoRef.value.pause()
-    videoRef.value.currentTime = 0
-  }
 }
 
 async function togglePlay() {
@@ -1343,12 +1323,13 @@ function handleKeydown(event) {
       event.preventDefault()
       showPlaylist.value = !showPlaylist.value
       break
-    case 'focusSearch':
+    case 'focusSearch': {
       event.preventDefault()
       // 如果是在全局页面能搜到输入框的话：
       const searchInput = document.querySelector('.search-input')
       if (searchInput) searchInput.focus()
       break
+    }
     case 'minimize':
       event.preventDefault()
       window.windowAPI?.minimize()
@@ -1477,7 +1458,7 @@ watch(
 // 监听 store 的进度变化（用户拖拽进度条时跳转）
 watch(
   () => playerStore.playProgress.progress,
-  (progress, oldProgress) => {
+  (progress) => {
     const media = getMediaElement()
     if (media && playerStore.playProgress.duration > 0) {
       const expectedTime = progress * playerStore.playProgress.duration

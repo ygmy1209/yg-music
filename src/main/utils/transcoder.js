@@ -264,7 +264,7 @@ export async function transcodeVideo(inputPath, outputPath = null, onProgress = 
         if (fs.existsSync(cachePath)) {
           try {
             fs.unlinkSync(cachePath)
-          } catch (e) {
+          } catch {
             // 忽略清理错误
           }
         }

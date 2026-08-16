@@ -3,7 +3,7 @@
  * 负责创建窗口、初始化数据库、处理 IPC 通信
  */
 
-import { app, shell, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -188,7 +188,7 @@ app.whenReady().then(() => {
 })
 
 // 应用即将退出时清理
-app.on('before-quit', (event) => {
+app.on('before-quit', () => {
   // 如果已经处理过，直接返回
   if (isClosing) return
 

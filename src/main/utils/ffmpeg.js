@@ -7,12 +7,8 @@ import ffmpeg from 'fluent-ffmpeg'
 import ffmpegPath from '@ffmpeg-installer/ffmpeg'
 import ffprobePath from '@ffprobe-installer/ffprobe'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import fs from 'fs'
 import { registerProcess } from './processManager.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 // ========== 初始化 FFmpeg 路径 ==========
 

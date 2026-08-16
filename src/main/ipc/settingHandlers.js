@@ -4,7 +4,7 @@
 
 import { ipcMain, BrowserWindow } from 'electron'
 import { getStore } from '../utils/store.js'
-import defaultSetting, { mergeSetting } from '../utils/defaultSetting.js'
+import { mergeSetting } from '../utils/defaultSetting.js'
 
 // 设置存储实例
 let settingStore = null
