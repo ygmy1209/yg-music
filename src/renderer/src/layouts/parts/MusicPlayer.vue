@@ -623,8 +623,8 @@ const drawVisualizer = () => {
   const dataArray = new Uint8Array(bufferLength)
 
   const render = () => {
-    // 检查是否应该停止
-    if (!analyser || isVideoMode.value) {
+    // 详情页隐藏、暂停或视频模式下不绘制，但保持循环便于恢复后继续
+    if (!playerStore.showDetail || !playerStore.isPlaying || !analyser || isVideoMode.value) {
       animationId = requestAnimationFrame(render)
       return
     }
@@ -721,6 +721,37 @@ let embeddedLyrics = null
 // 加载令牌：每次切歌递增，异步结果返回时令牌不一致说明是过期请求，直接丢弃
 let loadToken = 0
 
+// 歌曲元数据/封面小缓存，避免来回切歌时反复 IPC 解析同一文件
+const metadataCache = new Map()
+const METADATA_CACHE_LIMIT = 12
+
+const getMetadataCacheKey = (song) =>
+  `${song.id}|${song.name || ''}|${song.artist || ''}|${song.album || ''}`
+
+const putMetadataCache = (key, entry) => {
+  if (metadataCache.size >= METADATA_CACHE_LIMIT) {
+    const oldestKey = metadataCache.keys().next().value
+    metadataCache.delete(oldestKey)
+  }
+  metadataCache.set(key, entry)
+}
+
+const applyCover = (coverData) => {
+  if (coverData) {
+    coverImage.value = coverData
+    hasCover.value = true
+    updateThemeColor(coverData, { themeRgb })
+    // 同步封面到 playerStore，让 PlayerBar 也能显示
+    if (playerStore.currentSong) {
+      playerStore.currentSong.cover = coverData
+    }
+  } else {
+    hasCover.value = false
+    coverImage.value = ''
+    updateThemeColor(null, { themeRgb })
+  }
+}
+
 async function loadAudioMetadata(token) {
   // 安全检查
   const song = currentSong.value
@@ -730,9 +761,21 @@ async function loadAudioMetadata(token) {
   }
 
   const audioPath = currentAudioPath.value
+  const cacheKey = getMetadataCacheKey(song)
 
   // 重置内嵌歌词
   embeddedLyrics = null
+
+  const cached = metadataCache.get(cacheKey)
+  if (cached) {
+    songTitle.value = cached.title
+    artistName.value = cached.artist
+    albumName.value = cached.album
+    if (cached.duration > 0) duration.value = cached.duration
+    embeddedLyrics = cached.lyrics
+    applyCover(cached.cover)
+    return true
+  }
 
   try {
     console.log('[渲染进程] 正在请求音频元数据:', audioPath)
@@ -744,6 +787,7 @@ async function loadAudioMetadata(token) {
       console.warn('[渲染进程] 元数据解析错误:', result.error)
       songTitle.value = song.name || '未知歌曲'
       artistName.value = song.artist || '未知艺术家'
+      albumName.value = song.album || ''
       return true
     }
 
@@ -751,8 +795,7 @@ async function loadAudioMetadata(token) {
 
     songTitle.value = metadata.name || song.name || '未知歌曲'
     artistName.value = metadata.artist || song.artist || '未知艺术家'
-    
-    if (metadata.album) albumName.value = metadata.album
+    albumName.value = metadata.album || song.album || ''
     if (metadata.duration) duration.value = parseDuration(metadata.duration)
 
     // 获取内嵌歌词
@@ -765,19 +808,16 @@ async function loadAudioMetadata(token) {
     const coverResult = await window.musicAPI.getCover(audioPath)
     if (token !== loadToken) return false
 
-    if (coverResult.success) {
-      coverImage.value = coverResult.data
-      hasCover.value = true
-      updateThemeColor(coverResult.data, { themeRgb })
-      // 同步封面到 playerStore，让 PlayerBar 也能显示
-      if (playerStore.currentSong) {
-        playerStore.currentSong.cover = coverResult.data
-      }
-    } else {
-      hasCover.value = false
-      coverImage.value = ''
-      updateThemeColor(null, { themeRgb })
-    }
+    const coverData = coverResult.success ? coverResult.data : null
+    applyCover(coverData)
+    putMetadataCache(cacheKey, {
+      title: songTitle.value,
+      artist: artistName.value,
+      album: albumName.value,
+      duration: duration.value,
+      lyrics: embeddedLyrics,
+      cover: coverData
+    })
 
     return true
   } catch (error) {
@@ -785,6 +825,7 @@ async function loadAudioMetadata(token) {
     console.error('[渲染进程] 获取元数据失败:', error)
     songTitle.value = song.name || '未知歌曲'
     artistName.value = song.singer || '未知艺术家'
+    albumName.value = song.album || ''
     return true
   }
 }
@@ -961,6 +1002,13 @@ async function loadAndPlay(autoPlay = true) {
     currentTime.value = 0
     currentLyricIndex.value = -1
   }
+  // 清空上一首歌的信息，避免解析失败时残留旧封面/专辑/时长
+  songTitle.value = currentSong.name || '未知歌曲'
+  artistName.value = currentSong.artist || '未知艺术家'
+  albumName.value = ''
+  duration.value = 0
+  hasCover.value = false
+  coverImage.value = ''
   lyrics.value = []
   if (lyricScrollTimer) {
     clearTimeout(lyricScrollTimer)
@@ -1176,6 +1224,8 @@ function updateLyricPadding() {
 }
 
 function updateCurrentLyric() {
+  // 详情页隐藏时跳过歌词定位与滚动，打开后下一次 timeupdate 会立即同步
+  if (!playerStore.showDetail) return
   if (lyrics.value.length === 0) return
 
   // 歌词已按时间排序，用二分查找定位当前行，避免每次 timeupdate 遍历整个数组
@@ -1216,11 +1266,13 @@ const startCoverRotation = () => {
   if (coverAnimationFrame) return
 
   const rotate = () => {
-    // 60 秒转一圈（0.1 度/帧 ≈ 6 度/秒）
-    coverRotation += 0.1
-    if (coverRotation >= 360) coverRotation = 0
-    if (coverArtRef.value) {
-      coverArtRef.value.style.transform = `rotate(${coverRotation}deg)`
+    // 60 秒转一圈（0.1 度/帧 ≈ 6 度/秒）；详情页隐藏时跳过 DOM 写入
+    if (playerStore.showDetail) {
+      coverRotation += 0.1
+      if (coverRotation >= 360) coverRotation = 0
+      if (coverArtRef.value) {
+        coverArtRef.value.style.transform = `rotate(${coverRotation}deg)`
+      }
     }
     coverAnimationFrame = requestAnimationFrame(rotate)
   }
@@ -1515,6 +1567,14 @@ onUnmounted(() => {
   if (videoInfoTimer) {
     clearTimeout(videoInfoTimer)
     videoInfoTimer = null
+  }
+  if (titleBarTimer) {
+    clearTimeout(titleBarTimer)
+    titleBarTimer = null
+  }
+  if (filterToastTimer) {
+    clearTimeout(filterToastTimer)
+    filterToastTimer = null
   }
   if (lyricsResizeObserver) {
     lyricsResizeObserver.disconnect()

@@ -212,6 +212,7 @@ const handleSort = (field) => {
 
 const tableBodyRef = ref(null)
 const highlightedSongId = computed(() => playlistStore.highlightedSongId)
+let highlightTimer = null
 
 // 滚动到指定歌曲
 const scrollToSong = (songId) => {
@@ -232,7 +233,10 @@ const scrollToSong = (songId) => {
         behavior: 'smooth'
       })
 
-      setTimeout(() => {
+      // 每次高亮只保留最新计时器，避免旧的计时器提前清掉新歌曲的高亮
+      if (highlightTimer) clearTimeout(highlightTimer)
+      highlightTimer = setTimeout(() => {
+        highlightTimer = null
         playlistStore.clearHighlight()
       }, 3000)
       return
@@ -447,6 +451,7 @@ onUnmounted(() => {
   window.removeEventListener('scroll', handleWindowEvent, true)
   window.removeEventListener('resize', handleWindowEvent)
   window.removeEventListener('blur', handleWindowBlur)
+  if (highlightTimer) clearTimeout(highlightTimer)
 })
 
 // ========== 播放 ==========

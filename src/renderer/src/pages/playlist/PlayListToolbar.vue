@@ -79,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { usePlaylistStore } from '@/stores/playlistStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import SearchDropdown from './SearchDropdown.vue'
@@ -102,12 +102,23 @@ const handleSearchFocus = () => {
   playlistStore.setSearchFocused(true)
 }
 
+let searchBlurTimer = null
+
 const handleSearchBlur = () => {
   // 延迟关闭，给点击下拉列表留时间
-  setTimeout(() => {
+  if (searchBlurTimer) clearTimeout(searchBlurTimer)
+  searchBlurTimer = setTimeout(() => {
+    searchBlurTimer = null
     playlistStore.setSearchFocused(false)
   }, 200)
 }
+
+onUnmounted(() => {
+  if (searchBlurTimer) {
+    clearTimeout(searchBlurTimer)
+    searchBlurTimer = null
+  }
+})
 
 const handleSearchInput = (e) => {
   playlistStore.setSearchKeyword(e.target.value)
