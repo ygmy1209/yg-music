@@ -8,23 +8,7 @@ import { ref, computed } from 'vue'
 import { useSettingsStore } from './settingsStore'
 import { useSongSelection } from '@/composables/useSongSelection'
 import { dbToDisplaySongs, extractSongInfo } from '@/utils/songTransform'
-import { LIST } from '@/constants'
-
-/**
- * 限制并发执行的辅助函数
- * @param {Array} items - 要处理的项目数组
- * @param {Function} handler - 处理单个项目的函数
- * @param {number} concurrency - 最大并发数
- */
-async function parallelLimit(items, handler, concurrency = LIST.BATCH_CONCURRENCY) {
-  const results = []
-  for (let i = 0; i < items.length; i += concurrency) {
-    const batch = items.slice(i, i + concurrency)
-    const batchResults = await Promise.all(batch.map(handler))
-    results.push(...batchResults)
-  }
-  return results
-}
+import { parallelLimit } from '@/utils/parallelLimit'
 
 export const usePlaylistStore = defineStore('playlist', () => {
   // ========== 歌单列表 ==========
