@@ -309,7 +309,7 @@
 
     <!-- 播放列表面板 -->
     <Transition name="pane-slide">
-      <aside v-if="showPlaylist" class="glass-pane playlist-pane">
+      <aside v-if="showPlaylist" ref="playlistPaneRef" class="glass-pane playlist-pane">
         <div class="pane-header">
           <h3>播放队列</h3>
           <button class="pane-close" @click="showPlaylist = false">✕</button>
@@ -418,11 +418,13 @@ let videoInfoTimer = null
 let titleBarTimer = null // 标题栏隐藏计时器
 let isSwitchingSong = false // 是否正在切换歌曲
 let lastTaskbarPercent = null // 上次写入任务栏的整数进度百分比
+let lastPointerY = null // 最近一次鼠标在窗口内的纵向位置
 
 // ==================== 标题栏控制 ====================
 const handleTitleBarMouseMove = (event) => {
   const windowHeight = window.innerHeight
   const mouseY = event.clientY
+  lastPointerY = mouseY
   const topThreshold = windowHeight * 0.2 // 顶部 20% 区域
 
   if (mouseY <= topThreshold) {
@@ -555,6 +557,7 @@ const handleMouseMove = (event) => {
 
   const windowHeight = window.innerHeight
   const mouseY = event.clientY
+  lastPointerY = mouseY
   const bottomThreshold = windowHeight * 0.8 // 底部 20% 区域
 
   if (mouseY >= bottomThreshold) {
@@ -571,12 +574,29 @@ const handleMouseMove = (event) => {
   }
 }
 
+// 按最近一次鼠标位置重新评估上下悬浮控件的自动隐藏计时
+// 用于关闭播放队列等状态变化后，避免悬浮控件一直停留在页面上
+const refreshAutoHideTimers = () => {
+  if (lastPointerY === null) return
+  handleTitleBarMouseMove({ clientY: lastPointerY })
+  handleMouseMove({ clientY: lastPointerY })
+}
+
+// 点击播放队列面板以外的空白区域时关闭面板（底部控制岛和顶部窗口栏除外）
+const handleDocumentClick = (event) => {
+  if (!showPlaylist.value) return
+  if (playlistPaneRef.value && playlistPaneRef.value.contains(event.target)) return
+  if (event.target.closest('.floating-hub') || event.target.closest('.window-controls-bar')) return
+  showPlaylist.value = false
+}
+
 // ==================== DOM 引用 ====================
 const audioRef = ref(null)
 const videoRef = ref(null)
 const lyricsWrapperRef = ref(null)
 const visualizerCanvas = ref(null)
 const playlistRef = ref(null) // 播放列表容器引用
+const playlistPaneRef = ref(null) // 播放队列面板引用
 
 // ==================== 音频可视化 ====================
 let audioCtx = null
@@ -1436,6 +1456,13 @@ function onVolumeChange() {
 function handleKeydown(event) {
   if (hotkeys.shouldIgnoreEvent(event)) return
 
+  // Escape 优先关闭播放队列面板
+  if (event.key === 'Escape' && showPlaylist.value) {
+    event.preventDefault()
+    showPlaylist.value = false
+    return
+  }
+
   const action = hotkeys.matchAction(event)
   if (!action) return
 
@@ -1500,6 +1527,7 @@ onMounted(async () => {
 
   document.addEventListener('keydown', handleKeydown)
   document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('click', handleDocumentClick)
 
   if (audioRef.value) {
     audioRef.value.volume = playerStore.volume
@@ -1563,6 +1591,7 @@ watch(
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('click', handleDocumentClick)
   clearHideTimer()
   if (videoInfoTimer) {
     clearTimeout(videoInfoTimer)
@@ -1575,6 +1604,10 @@ onUnmounted(() => {
   if (filterToastTimer) {
     clearTimeout(filterToastTimer)
     filterToastTimer = null
+  }
+  if (paneScrollTimer) {
+    clearTimeout(paneScrollTimer)
+    paneScrollTimer = null
   }
   if (lyricsResizeObserver) {
     lyricsResizeObserver.disconnect()
@@ -1698,14 +1731,25 @@ const scrollPlaylistToCurrent = () => {
 }
 
 // 监听播放列表显示状态
+let paneScrollTimer = null
+
 watch(showPlaylist, (newVal) => {
   if (newVal) {
     showControlHub.value = true
     clearHideTimer()
     // 延迟滚动，等待动画完成
-    setTimeout(() => {
+    if (paneScrollTimer) clearTimeout(paneScrollTimer)
+    paneScrollTimer = setTimeout(() => {
+      paneScrollTimer = null
       scrollPlaylistToCurrent()
     }, 300)
+  } else {
+    // 关闭面板后，按最近一次鼠标位置重新启动上下悬浮控件的自动隐藏计时
+    if (paneScrollTimer) {
+      clearTimeout(paneScrollTimer)
+      paneScrollTimer = null
+    }
+    refreshAutoHideTimers()
   }
 })
 
@@ -1918,10 +1962,11 @@ watch(
       perspective: 1000px;
 
       .canvas-wrapper {
+        // 宽高永远取同一个变量，保证画布与内层封面始终是正方形，旋转时不会变椭圆
+        --cover-canvas-size: min(40vw, 440px);
         position: relative;
-        // 默认 1100px 窗口下仍是 440px，更小窗口时随视口等比缩小，避免溢出
-        width: min(40vw, 440px);
-        aspect-ratio: 1;
+        width: var(--cover-canvas-size);
+        height: var(--cover-canvas-size);
         border-radius: 40px;
         overflow: hidden;
         box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -1942,12 +1987,11 @@ watch(
 
           .cover-art-box {
             position: relative;
-            // 与 440px 画布保持 280/440 的比例，容器随画布缩放
-            width: 63.6%;
-            aspect-ratio: 1;
+            // 与画布保持 280/440 = 63.6% 比例，宽高都由同一变量算出，严格正方形
+            width: calc(var(--cover-canvas-size) * 0.636);
+            height: calc(var(--cover-canvas-size) * 0.636);
             display: flex; justify-content: center; align-items: center;
             z-index: 2;
-            container-type: inline-size;
 
             .main-art {
               width: 100%; height: 100%;
@@ -1961,8 +2005,9 @@ watch(
               border-radius: 50%;
               background: linear-gradient(135deg, var(--active-primary-color), #ff9eb8);
               display: flex; justify-content: center; align-items: center;
-              // 28cqw ≈ 默认 280px 下的 78px，与原 5rem 视觉一致，并随容器缩放
-              font-size: 28cqw; color: rgba(255, 255, 255, 0.8);
+              // 18% ≈ 默认 440px 画布下的 79px，与原 5rem 视觉一致，并随画布缩放
+              font-size: calc(var(--cover-canvas-size) * 0.18);
+              color: rgba(255, 255, 255, 0.8);
               box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
             }
 
@@ -2198,17 +2243,13 @@ watch(
   @media (max-width: 1200px) {
     .music-center { flex: 0 0 40%; min-width: 280px; }
     .lyrics-panel { flex: 0 0 52%; min-width: 320px; height: 70vh; }
-    .canvas-wrapper { width: 360px; height: 360px; }
-    .cover-art-box { width: 220px; height: 220px; }
-    .visualizer-canvas { width: 360px; height: 360px; }
+    .canvas-wrapper { --cover-canvas-size: 360px; }
   }
 
   @media (max-width: 900px) {
     .music-center { flex: 0 0 42%; min-width: 240px; }
     .lyrics-panel { flex: 0 0 50%; min-width: 280px; height: 65vh; }
-    .canvas-wrapper { width: 300px; height: 300px; }
-    .cover-art-box { width: 180px; height: 180px; }
-    .visualizer-canvas { width: 300px; height: 300px; }
+    .canvas-wrapper { --cover-canvas-size: 300px; }
     .song-info .song-name { font-size: 1.6rem; }
     .l-line.l-active { font-size: 1.2rem; }
   }
@@ -2218,9 +2259,7 @@ watch(
     .stage-content { gap: 20px; padding: 0 10px; }
     .music-center { flex: 0 0 38%; min-width: 200px; gap: 20px; }
     .lyrics-panel { flex: 0 0 55%; min-width: 240px; height: 55vh; }
-    .canvas-wrapper { width: 240px; height: 240px; border-radius: 28px; }
-    .cover-art-box { width: 150px; height: 150px; }
-    .visualizer-canvas { width: 240px; height: 240px; }
+    .canvas-wrapper { --cover-canvas-size: 240px; border-radius: 28px; }
     .song-info .song-name { font-size: 1.3rem; }
     .floating-hub { width: calc(100% - 24px); bottom: 12px; border-radius: 18px; }
     .hub-content { padding: 10px 16px; }
