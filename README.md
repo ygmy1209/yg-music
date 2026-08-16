@@ -50,8 +50,29 @@ npm run build:mac
 npm run build:linux
 ```
 
+## 给初学者的阅读路线
+
+按下面顺序阅读，基本能顺着一条请求链路看懂整个项目：
+
+1. `package.json` 与 `electron.vite.config.mjs`：先看脚本和构建入口。
+2. `src/main/index.js`：窗口、托盘、应用生命周期。
+3. `src/preload/index.js`：它只是把 IPC 通道包成 `window.*API`，没有业务逻辑。
+4. `src/main/ipc/index.js`：所有 IPC handler 的注册入口，再挑 `musicHandlers.js` 看主进程怎么干活。
+5. `src/renderer/src/main.js` → `App.vue` → `layouts/MainLayout.vue`：界面怎么搭起来。
+6. `stores/playlistStore.js` → `pages/playlist/`：数据怎么从数据库到界面。
+7. `stores/playerStore.js` → `layouts/parts/MusicPlayer.vue`：最核心也最复杂的播放链路（切歌令牌、歌词定位、转码都在这里）。
+
+阅读时重点体会三个词：**分层**（main / preload / renderer）、**单向数据流**（UI → store → preload → IPC → main）、**状态归一**（一个状态只在一个地方是“真相”）。
+
 ## 说明
 
 - 渲染进程通过 `window.*API`（由 preload 暴露）与主进程通信，不直接访问 Node/Electron。
 - 歌曲 ID 使用文件路径；歌单与排序信息分别存储在 SQLite 三张表中。
 - 设置、播放信息、快捷键以 JSON 文件形式持久化在用户数据目录。
+
+## 已知的后续可优化点（暂不影响使用）
+
+- `MusicPlayer.vue` 仍然偏大（约 2200 行），是项目里最需要耐心读的文件。
+- `settingsStore.js` 内部有“简化 ref + 完整 settings”两套状态互相同步，能跑通但不是最优雅的写法。
+- 全局还有不少 Prettier 格式警告（主要是历史换行符/缩进），`lint` 保持 0 error，不影响构建。
+- 没有 TypeScript（这是项目早期刻意选择的），也没有界面自动化测试。
