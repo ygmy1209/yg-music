@@ -239,7 +239,7 @@ export async function transcodeVideo(inputPath, outputPath = null, onProgress = 
     command
       .videoCodec('copy')
       .audioCodec('flac')
-      .output(cachePath.replace('.mp4', '.mkv'))
+      .output(cachePath)
 
     // 进度回调
     if (onProgress) {
@@ -264,7 +264,7 @@ export async function transcodeVideo(inputPath, outputPath = null, onProgress = 
         if (fs.existsSync(cachePath)) {
           try {
             fs.unlinkSync(cachePath)
-          } catch (e) {
+          } catch {
             // 忽略清理错误
           }
         }
@@ -336,44 +336,4 @@ export async function ensurePlayable(filePath, onProgress = null) {
     // 出错时返回原文件，让播放器尝试播放
     return { path: filePath, transcoded: false, error: error.message }
   }
-}
-
-/**
- * 清理转码缓存
- * @param {number} maxAgeDays - 最大缓存天数，超过此天数的缓存会被删除
- */
-export function cleanTranscodeCache(maxAgeDays = 30) {
-  const cacheDir = getTranscodeCacheDir()
-  const now = Date.now()
-  const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000
-
-  let cleaned = 0
-  let totalSize = 0
-
-  try {
-    const files = fs.readdirSync(cacheDir)
-    for (const file of files) {
-      const filePath = path.join(cacheDir, file)
-      const stats = fs.statSync(filePath)
-
-      if (now - stats.mtimeMs > maxAgeMs) {
-        totalSize += stats.size
-        fs.unlinkSync(filePath)
-        cleaned++
-      }
-    }
-
-    if (cleaned > 0) {
-      console.log(`[转码器] 清理了 ${cleaned} 个缓存文件，释放 ${(totalSize / 1024 / 1024).toFixed(2)} MB`)
-    }
-  } catch (error) {
-    console.error('[转码器] 清理缓存失败:', error.message)
-  }
-}
-
-export default {
-  probeMedia,
-  transcodeVideo,
-  ensurePlayable,
-  cleanTranscodeCache
 }

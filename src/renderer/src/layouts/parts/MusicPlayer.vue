@@ -347,16 +347,14 @@
  */
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { usePlayerStore } from '@/stores/playerStore'
-import { usePlaylistStore } from '@/stores/playlistStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useHotkeys } from '@/composables/useHotkeys'
 import { formatTime, parseDuration } from '@/utils/formatTime'
 import { parseLrc } from '@/utils/parseLrc'
-import { rgbToHsl, updateThemeColor } from '@/utils/colorUtils'
+import { updateThemeColor } from '@/utils/colorUtils'
 
 // ==================== Stores ====================
 const playerStore = usePlayerStore()
-const playlistStore = usePlaylistStore()
 const settingsStore = useSettingsStore()
 const hotkeys = useHotkeys()
 
@@ -391,7 +389,12 @@ const isVideoMode = computed(() => playerStore.currentSong?.type === 1)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
-const volume = ref(80)
+
+// 音量以 playerStore.volume 为唯一状态源（0-1），这里仅做 0-100 的 UI 换算
+const volume = computed({
+  get: () => Math.round(playerStore.volume * 100),
+  set: (val) => playerStore.setVolume(val / 100)
+})
 const songTitle = ref('加载中...')
 const artistName = ref('未知艺术家')
 const albumName = ref('未知专辑')
@@ -459,19 +462,19 @@ const handleTitleBarMouseLeave = () => {
 
 // 窗口控制
 const minimizeWindow = () => {
-  window.electron.ipcRenderer.send('window-minimize')
+  window.windowAPI.minimize()
 }
 
 const maximizeWindow = () => {
-  window.electron.ipcRenderer.send('window-maximize')
+  window.windowAPI.maximize()
 }
 
 const fullscreenWindow = () => {
-  window.electron.ipcRenderer.send('window-fullscreen')
+  window.windowAPI.fullscreen()
 }
 
 const closeWindow = () => {
-  window.electron.ipcRenderer.send('window-close')
+  window.windowAPI.close()
 }
 
 // ==================== 媒体筛选 ====================
@@ -684,12 +687,6 @@ const progressPercent = computed(() => {
   return (currentTime.value / duration.value) * 100
 })
 
-// 歌词对齐方式
-const lyricAlignClass = computed(() => {
-  const align = settingsStore.settings['playDetail.lyricAlign'] || 'center'
-  return `lyric-align-${align}`
-})
-
 // 当前歌曲对象（带安全检查）
 const currentSong = computed(() => {
   if (
@@ -801,7 +798,7 @@ async function loadLyrics() {
       return
     }
     lyrics.value = parseLrc(result.content)
-  } catch (error) {
+  } catch {
     lyrics.value = []
   }
 }
@@ -812,18 +809,6 @@ function getMediaElement() {
     return videoRef.value
   }
   return audioRef.value
-}
-
-// 停止所有媒体元素（用于切换歌曲时确保只有一个在播放）
-function stopAllMedia() {
-  if (audioRef.value) {
-    audioRef.value.pause()
-    audioRef.value.currentTime = 0
-  }
-  if (videoRef.value) {
-    videoRef.value.pause()
-    videoRef.value.currentTime = 0
-  }
 }
 
 async function togglePlay() {
@@ -848,6 +833,25 @@ async function togglePlay() {
 }
 
 let mediaBlobUrl = null
+let unsubscribeTranscodeProgress = null
+
+// 订阅转码进度事件（preload 提供，主进程通过 transcode:progress 推送）
+function subscribeTranscodeProgress(filePath) {
+  if (typeof window.transcodeAPI?.onProgress !== 'function') return
+  unsubscribeTranscodeProgress = window.transcodeAPI.onProgress((data) => {
+    if (data && data.filePath === filePath) {
+      transcodeProgress.value = Math.max(0, Math.min(100, data.percent || 0))
+    }
+  })
+}
+
+// 取消订阅转码进度事件
+function unsubscribeTranscodeProgressSafe() {
+  if (unsubscribeTranscodeProgress) {
+    unsubscribeTranscodeProgress()
+    unsubscribeTranscodeProgress = null
+  }
+}
 
 async function prepareMediaFile(originalPath) {
   if (!isVideoMode.value || !window.transcodeAPI) return originalPath
@@ -860,12 +864,16 @@ async function prepareMediaFile(originalPath) {
 
     isTranscoding.value = true
     transcodeProgress.value = 10
+    subscribeTranscodeProgress(originalPath)
 
-    const result = await window.transcodeAPI.ensurePlayable(originalPath)
-    isTranscoding.value = false
-    transcodeProgress.value = 100
-
-    return result.success && result.data ? result.data.path : originalPath
+    try {
+      const result = await window.transcodeAPI.ensurePlayable(originalPath)
+      transcodeProgress.value = 100
+      return result.success && result.data ? result.data.path : originalPath
+    } finally {
+      unsubscribeTranscodeProgressSafe()
+      isTranscoding.value = false
+    }
   } catch (transcodeError) {
     console.warn('[转码] 检测失败，使用原文件:', transcodeError)
     isTranscoding.value = false
@@ -916,6 +924,7 @@ async function loadAndPlay(autoPlay = true) {
   }
   lyrics.value = []
   isLoading.value = true
+  unsubscribeTranscodeProgressSafe()
   isTranscoding.value = false
   transcodeProgress.value = 0
 
@@ -1294,6 +1303,7 @@ function onMediaError(e) {
 }
 
 function onVolumeChange() {
+  // v-model 已通过 computed setter 更新 playerStore.volume，这里同步到媒体元素
   const media = getMediaElement()
   if (!media) return
   media.volume = volume.value / 100
@@ -1343,12 +1353,13 @@ function handleKeydown(event) {
       event.preventDefault()
       showPlaylist.value = !showPlaylist.value
       break
-    case 'focusSearch':
+    case 'focusSearch': {
       event.preventDefault()
       // 如果是在全局页面能搜到输入框的话：
       const searchInput = document.querySelector('.search-input')
       if (searchInput) searchInput.focus()
       break
+    }
     case 'minimize':
       event.preventDefault()
       window.windowAPI?.minimize()
@@ -1367,8 +1378,14 @@ onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
   document.addEventListener('mousemove', handleMouseMove)
 
-  if (audioRef.value) audioRef.value.volume = volume.value / 100
-  if (videoRef.value) videoRef.value.volume = volume.value / 100
+  if (audioRef.value) {
+    audioRef.value.volume = playerStore.volume
+    audioRef.value.muted = playerStore.isMute
+  }
+  if (videoRef.value) {
+    videoRef.value.volume = playerStore.volume
+    videoRef.value.muted = playerStore.isMute
+  }
 
   // 初始化歌词 padding 并监听容器大小变化
   nextTick(() => {
@@ -1438,6 +1455,7 @@ onUnmounted(() => {
   }
   stopCoverRotation()
   stopVisualizer()
+  unsubscribeTranscodeProgressSafe()
   if (audioCtx) {
     audioCtx.close()
     audioCtx = null
@@ -1477,7 +1495,7 @@ watch(
 // 监听 store 的进度变化（用户拖拽进度条时跳转）
 watch(
   () => playerStore.playProgress.progress,
-  (progress, oldProgress) => {
+  (progress) => {
     const media = getMediaElement()
     if (media && playerStore.playProgress.duration > 0) {
       const expectedTime = progress * playerStore.playProgress.duration
@@ -1489,13 +1507,24 @@ watch(
   }
 )
 
-// 监听 store 的音量变化
+// 监听 store 的音量变化（PlayerBar 滑块、启动恢复等入口）
 watch(
   () => playerStore.volume,
   (vol) => {
     const media = getMediaElement()
     if (media) {
       media.volume = vol
+    }
+  }
+)
+
+// 监听 store 的静音状态变化（PlayerBar 静音按钮）
+watch(
+  () => playerStore.isMute,
+  (muted) => {
+    const media = getMediaElement()
+    if (media) {
+      media.muted = muted
     }
   }
 )

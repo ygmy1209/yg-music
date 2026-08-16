@@ -5,6 +5,7 @@
 
 import Database from 'better-sqlite3'
 import path from 'path'
+import fs from 'fs'
 import { app } from 'electron'
 
 // 数据库实例
@@ -19,75 +20,34 @@ const getDbPath = () => {
   return path.join(userDataPath, 'yg-music.db')
 }
 
-// ========== listId 辅助函数 ==========
-
-/**
- * 检查 listId 字符串是否包含指定歌单ID
- * @param {string} listIdStr - 逗号分隔的 listId 字符串
- * @param {string} targetId - 目标歌单ID
- * @returns {boolean}
- */
-const listIdContains = (listIdStr, targetId) => {
-  if (!listIdStr) return false
-  const ids = listIdStr.split(',').map(s => s.trim())
-  return ids.includes(targetId)
-}
-
-/**
- * 向 listId 字符串追加歌单ID
- * @param {string} listIdStr - 逗号分隔的 listId 字符串
- * @param {string} newId - 新歌单ID
- * @returns {string} 更新后的 listId 字符串
- */
-const appendListId = (listIdStr, newId) => {
-  if (!listIdStr) return newId
-  const ids = listIdStr.split(',').map(s => s.trim())
-  if (!ids.includes(newId)) {
-    ids.push(newId)
-  }
-  return ids.join(',')
-}
-
-/**
- * 从 listId 字符串移除歌单ID
- * @param {string} listIdStr - 逗号分隔的 listId 字符串
- * @param {string} targetId - 要移除的歌单ID
- * @returns {string} 更新后的 listId 字符串
- */
-const removeListId = (listIdStr, targetId) => {
-  if (!listIdStr) return ''
-  const ids = listIdStr.split(',').map(s => s.trim())
-  const filtered = ids.filter(id => id !== targetId)
-  return filtered.join(',')
-}
-
-/**
- * 检查表是否存在旧结构（需要迁移）
- * @param {Database} database - 数据库实例
- * @returns {boolean} 是否需要迁移
- */
-const checkNeedMigration = (database) => {
-  try {
-    // 检查是否存在相同 id 的多条记录
-    const duplicateCheck = database.prepare(`
-      SELECT id, COUNT(*) as count
-      FROM my_list_music_info
-      GROUP BY id
-      HAVING count > 1
-    `).all()
-
-    return duplicateCheck.length > 0
-  } catch {
-    return false
-  }
-}
-
 /**
  * 初始化数据库
  * 创建表结构（如果不存在）
  */
 export const initDatabase = () => {
   const dbPath = getDbPath()
+
+  // 检测旧结构（PRIMARY KEY(id) + 逗号分隔 listId），删除重建
+  if (fs.existsSync(dbPath)) {
+    const tempDb = new Database(dbPath)
+    try {
+      const tableInfo = tempDb.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='my_list_music_info'"
+      ).get()
+
+      // 旧结构特征：使用 PRIMARY KEY(id)，不包含 UNIQUE 约束
+      if (tableInfo && tableInfo.sql && !tableInfo.sql.includes('UNIQUE')) {
+        tempDb.close()
+        fs.unlinkSync(dbPath)
+        console.log('数据库：检测到旧结构，已删除旧数据库文件')
+      } else {
+        tempDb.close()
+      }
+    } catch {
+      tempDb.close()
+    }
+  }
+
   db = new Database(dbPath)
 
   // 启用 WAL 模式
@@ -103,45 +63,19 @@ export const initDatabase = () => {
     )
   `)
 
-  // ========== 检查并处理旧表结构迁移 ==========
-  // 如果表已存在且有旧结构，需要先迁移数据再重建表
-  const tableExists = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='my_list_music_info'"
-  ).get()
-
-  let needRecreateTable = false
-  if (tableExists) {
-    // 检查是否有重复的 id（旧结构特征）
-    if (checkNeedMigration(db)) {
-      needRecreateTable = true
-    }
-  }
-
-  if (needRecreateTable) {
-    // 备份数据到临时表
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS my_list_music_info_backup AS
-      SELECT * FROM my_list_music_info
-    `)
-
-    // 删除原表
-    db.exec('DROP TABLE my_list_music_info')
-
-    console.log('数据库：重建表结构以支持新格式')
-  }
-
   // ========== 创建歌曲信息表 ==========
-  // 注意：listId 存储逗号分隔的歌单ID列表，一首歌可以属于多个歌单
+  // listId 存储单个歌单ID，一首歌属于多个歌单时有多行记录，UNIQUE(id, listId) 保证不重复
   db.exec(`
     CREATE TABLE IF NOT EXISTS my_list_music_info (
-      id TEXT NOT NULL PRIMARY KEY,
+      id TEXT NOT NULL,
       listId TEXT NOT NULL,
       name TEXT NOT NULL,
       singer TEXT NOT NULL,
       album TEXT,
       type INTEGER NOT NULL,
       interval TEXT,
-      meta TEXT NOT NULL
+      meta TEXT NOT NULL,
+      UNIQUE(id, listId)
     )
   `)
 
@@ -157,59 +91,13 @@ export const initDatabase = () => {
   // ========== 创建索引 ==========
   db.exec(`
     CREATE INDEX IF NOT EXISTS index_my_list_music_info
-    ON my_list_music_info(id)
+    ON my_list_music_info(id, listId)
   `)
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS index_my_list_music_info_order
     ON my_list_music_info_order(listId, musicInfoId)
   `)
-
-  // ========== 执行数据迁移 ==========
-  if (needRecreateTable) {
-    // 从备份表恢复并合并数据
-    const allSongs = db.prepare('SELECT * FROM my_list_music_info_backup').all()
-
-    // 按 id 分组
-    const songMap = new Map()
-    for (const song of allSongs) {
-      if (!songMap.has(song.id)) {
-        songMap.set(song.id, {
-          ...song,
-          listIds: [song.listId]
-        })
-      } else {
-        songMap.get(song.id).listIds.push(song.listId)
-      }
-    }
-
-    // 插入合并后的记录
-    const insertStmt = db.prepare(`
-      INSERT INTO my_list_music_info (id, listId, name, singer, album, type, interval, meta)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-
-    const transaction = db.transaction(() => {
-      for (const [id, song] of songMap) {
-        insertStmt.run(
-          id,
-          song.listIds.join(','),
-          song.name,
-          song.singer,
-          song.album,
-          song.type,
-          song.interval,
-          song.meta
-        )
-      }
-    })
-
-    transaction()
-
-    // 删除备份表
-    db.exec('DROP TABLE my_list_music_info_backup')
-    console.log('数据迁移：完成')
-  }
 
   // ========== 初始化默认歌单 ==========
   const defaultList = db.prepare('SELECT * FROM my_list WHERE id = ?').get('default')
@@ -239,80 +127,6 @@ export const closeDatabase = () => {
     db.close()
     db = null
     console.log('数据库连接已关闭')
-  }
-}
-
-// ========== 数据迁移 ==========
-
-/**
- * 迁移数据：将多条记录合并为单条记录（逗号分隔的 listId）
- * 在初始化时自动执行
- */
-export const migrateListIdData = () => {
-  const database = getDatabase()
-
-  // 检查表是否存在旧结构（UNIQUE 约束）
-  try {
-    // 尝试检查是否存在重复的 id
-    const duplicateCheck = database.prepare(`
-      SELECT id, COUNT(*) as count
-      FROM my_list_music_info
-      GROUP BY id
-      HAVING count > 1
-    `).all()
-
-    if (duplicateCheck.length === 0) {
-      console.log('数据迁移：无需迁移')
-      return
-    }
-
-    console.log('数据迁移：发现需要合并的记录...')
-
-    // 获取所有歌曲记录
-    const allSongs = database.prepare('SELECT * FROM my_list_music_info').all()
-
-    // 按 id 分组
-    const songMap = new Map()
-    for (const song of allSongs) {
-      if (!songMap.has(song.id)) {
-        songMap.set(song.id, {
-          ...song,
-          listIds: [song.listId]
-        })
-      } else {
-        songMap.get(song.id).listIds.push(song.listId)
-      }
-    }
-
-    // 事务处理
-    const transaction = database.transaction(() => {
-      // 删除所有记录
-      database.prepare('DELETE FROM my_list_music_info').run()
-
-      // 重新插入合并后的记录
-      const insertStmt = database.prepare(`
-        INSERT INTO my_list_music_info (id, listId, name, singer, album, type, interval, meta)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-
-      for (const [id, song] of songMap) {
-        insertStmt.run(
-          id,
-          song.listIds.join(','),
-          song.name,
-          song.singer,
-          song.album,
-          song.type,
-          song.interval,
-          song.meta
-        )
-      }
-    })
-
-    transaction()
-    console.log('数据迁移：完成')
-  } catch (error) {
-    console.log('数据迁移检查：', error.message)
   }
 }
 
@@ -359,26 +173,16 @@ export const deletePlaylist = (id) => {
 
   const database = getDatabase()
 
-  // 1. 删除该歌单的排序记录
-  database.prepare('DELETE FROM my_list_music_info_order WHERE listId = ?').run(id)
+  const transaction = database.transaction(() => {
+    // 删除该歌单的排序记录
+    database.prepare('DELETE FROM my_list_music_info_order WHERE listId = ?').run(id)
+    // 删除该歌单中的歌曲记录
+    database.prepare('DELETE FROM my_list_music_info WHERE listId = ?').run(id)
+    // 删除歌单
+    database.prepare('DELETE FROM my_list WHERE id = ?').run(id)
+  })
 
-  // 2. 更新所有歌曲的 listId 字符串，移除该歌单ID
-  const songs = database.prepare('SELECT id, listId FROM my_list_music_info').all()
-  for (const song of songs) {
-    if (!listIdContains(song.listId, id)) continue
-
-    const newListId = removeListId(song.listId, id)
-    if (!newListId) {
-      // 如果没有歌单了，删除整个记录
-      database.prepare('DELETE FROM my_list_music_info WHERE id = ?').run(song.id)
-      continue
-    }
-    
-    database.prepare('UPDATE my_list_music_info SET listId = ? WHERE id = ?').run(newListId, song.id)
-  }
-
-  // 3. 删除歌单记录
-  database.prepare('DELETE FROM my_list WHERE id = ?').run(id)
+  transaction()
 }
 
 // ========== 歌曲操作 ==========
@@ -389,28 +193,16 @@ export const deletePlaylist = (id) => {
 export const getSongsByPlaylist = (listId) => {
   const database = getDatabase()
 
-  // 使用 LIKE 查询匹配逗号分隔的 listId
-  // 匹配四种情况：
-  // 1. listId = 'default'
-  // 2. listId LIKE 'default,%'
-  // 3. listId LIKE '%,default,%'
-  // 4. listId LIKE '%,default'
   const stmt = database.prepare(`
     SELECT m.*, o.\`order\`
     FROM my_list_music_info m
     LEFT JOIN my_list_music_info_order o
       ON m.id = o.musicInfoId AND o.listId = ?
-    WHERE (m.listId = ? OR m.listId LIKE ? OR m.listId LIKE ? OR m.listId LIKE ?)
+    WHERE m.listId = ?
     ORDER BY o.\`order\`
   `)
 
-  return stmt.all(
-    listId,
-    listId,
-    `${listId},%`,
-    `%,${listId},%`,
-    `%,${listId}`
-  )
+  return stmt.all(listId, listId)
 }
 
 /**
@@ -463,33 +255,37 @@ export const compactSongsOrder = (listId) => {
 export const addSongToPlaylist = (songId, listId, songInfo, addLocation = 'top') => {
   const database = getDatabase()
 
-  // 1. 处理歌曲基本信息
-  const existing = database.prepare('SELECT * FROM my_list_music_info WHERE id = ?').get(songId)
+  // 检查是否已在该歌单中
+  const existing = database.prepare(
+    'SELECT * FROM my_list_music_info WHERE id = ? AND listId = ?'
+  ).get(songId, listId)
 
-  if (!existing) {
-    // 新歌曲，插入记录
+  if (existing) {
+    // 已在该歌单中，检查排序记录
+    const orderExists = database.prepare(
+      'SELECT * FROM my_list_music_info_order WHERE musicInfoId = ? AND listId = ?'
+    ).get(songId, listId)
+    if (orderExists) return existing
+  } else {
+    // 不在该歌单中，获取歌曲信息（优先从其他歌单的已有记录中获取）
+    const existingInOtherList = database.prepare(
+      'SELECT * FROM my_list_music_info WHERE id = ? LIMIT 1'
+    ).get(songId)
+
+    const info = existingInOtherList || songInfo
+
     database.prepare(`
       INSERT INTO my_list_music_info (id, listId, name, singer, album, type, interval, meta)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      songId, listId, songInfo.name || '未知歌曲', songInfo.singer || '未知艺术家',
-      songInfo.album || '', songInfo.type || 0, songInfo.interval || songInfo.duration || '',
-      songInfo.meta || '{}'
+      songId, listId,
+      info.name || '未知歌曲', info.singer || '未知艺术家',
+      info.album || '', info.type || 0, info.interval || info.duration || '',
+      info.meta || '{}'
     )
-  } else if (!listIdContains(existing.listId, listId)) {
-    // 已存在但不在当前歌单，追加 listId
-    const newListId = appendListId(existing.listId, listId)
-    database.prepare('UPDATE my_list_music_info SET listId = ? WHERE id = ?').run(newListId, songId)
-  } else {
-    // 已存在且在当前歌单，检查是否已有排序记录
-    const orderExists = database.prepare(
-      'SELECT * FROM my_list_music_info_order WHERE musicInfoId = ? AND listId = ?'
-    ).get(songId, listId)
-    
-    if (orderExists) return existing
   }
 
-  // 2. 处理排序记录 (如果上方提前返回，就不会执行到这)
+  // 检查排序记录是否已存在
   const orderExists = database.prepare(
     'SELECT * FROM my_list_music_info_order WHERE musicInfoId = ? AND listId = ?'
   ).get(songId, listId)
@@ -498,8 +294,10 @@ export const addSongToPlaylist = (songId, listId, songInfo, addLocation = 'top')
     return { id: songId, listId, ...songInfo, order: orderExists.order }
   }
 
-  // 3. 插入排序记录
-  const countRes = database.prepare('SELECT COUNT(*) as count FROM my_list_music_info_order WHERE listId = ?').get(listId)
+  // 插入排序记录
+  const countRes = database.prepare(
+    'SELECT COUNT(*) as count FROM my_list_music_info_order WHERE listId = ?'
+  ).get(listId)
   const hasItems = countRes.count > 0
 
   if (hasItems) {
@@ -509,10 +307,14 @@ export const addSongToPlaylist = (songId, listId, songInfo, addLocation = 'top')
   let order = 0
   if (addLocation === 'top') {
     if (hasItems) {
-      database.prepare('UPDATE my_list_music_info_order SET `order` = `order` + 1 WHERE listId = ?').run(listId)
+      database.prepare(
+        'UPDATE my_list_music_info_order SET `order` = `order` + 1 WHERE listId = ?'
+      ).run(listId)
     }
   } else {
-    const newCount = database.prepare('SELECT COUNT(*) as count FROM my_list_music_info_order WHERE listId = ?').get(listId)
+    const newCount = database.prepare(
+      'SELECT COUNT(*) as count FROM my_list_music_info_order WHERE listId = ?'
+    ).get(listId)
     order = newCount.count
   }
 
@@ -536,26 +338,19 @@ export const removeSongFromPlaylist = (songId, listId, isDefault = false) => {
   const database = getDatabase()
 
   if (isDefault || listId === 'default') {
-    // 从 default 删除 = 彻底删除歌曲
+    // 从 default 删除 = 彻底删除歌曲（所有歌单中的记录）
     database.prepare('DELETE FROM my_list_music_info_order WHERE musicInfoId = ?').run(songId)
     database.prepare('DELETE FROM my_list_music_info WHERE id = ?').run(songId)
     return
   }
 
   // 只从指定歌单移除
-  database.prepare('DELETE FROM my_list_music_info_order WHERE musicInfoId = ? AND listId = ?').run(songId, listId)
-
-  const song = database.prepare('SELECT listId FROM my_list_music_info WHERE id = ?').get(songId)
-  if (!song) return
-
-  const newListId = removeListId(song.listId, listId)
-  if (!newListId) {
-    // 如果没有歌单了，删除整个记录
-    database.prepare('DELETE FROM my_list_music_info WHERE id = ?').run(songId)
-    return
-  }
-
-  database.prepare('UPDATE my_list_music_info SET listId = ? WHERE id = ?').run(newListId, songId)
+  database.prepare(
+    'DELETE FROM my_list_music_info_order WHERE musicInfoId = ? AND listId = ?'
+  ).run(songId, listId)
+  database.prepare(
+    'DELETE FROM my_list_music_info WHERE id = ? AND listId = ?'
+  ).run(songId, listId)
 }
 
 /**
@@ -567,7 +362,9 @@ export const updateSongsOrder = (listId, songIds) => {
   const database = getDatabase()
 
   // 使用事务批量更新
-  const updateOrder = database.prepare('UPDATE my_list_music_info_order SET `order` = ? WHERE listId = ? AND musicInfoId = ?')
+  const updateOrder = database.prepare(
+    'UPDATE my_list_music_info_order SET `order` = ? WHERE listId = ? AND musicInfoId = ?'
+  )
 
   const transaction = database.transaction((songs) => {
     songs.forEach((songId, index) => {
@@ -576,19 +373,6 @@ export const updateSongsOrder = (listId, songIds) => {
   })
 
   transaction(songIds)
-}
-
-/**
- * 检查文件是否为支持的音频/视频格式
- */
-export const isMediaFile = (filePath) => {
-  const ext = path.extname(filePath).toLowerCase()
-  const audioExts = ['.mp3', '.flac', '.wav', '.aac', '.ogg', '.wma', '.m4a']
-  const videoExts = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
-  return {
-    isMedia: audioExts.includes(ext) || videoExts.includes(ext),
-    type: videoExts.includes(ext) ? 1 : 0 // 0=音乐, 1=视频
-  }
 }
 
 /**
@@ -629,13 +413,12 @@ export const updateSongInfo = (songId, updates) => {
 export const getAllAlbums = () => {
   const database = getDatabase()
 
-  // 获取所有歌曲（从 default 歌单，使用 LIKE 匹配逗号分隔的 listId）
   const songs = database.prepare(`
     SELECT m.*, o.\`order\`
     FROM my_list_music_info m
     LEFT JOIN my_list_music_info_order o
       ON m.id = o.musicInfoId AND o.listId = 'default'
-    WHERE (m.listId = 'default' OR m.listId LIKE 'default,%' OR m.listId LIKE '%,default,%' OR m.listId LIKE '%,default')
+    WHERE m.listId = 'default'
     ORDER BY o.\`order\`
   `).all()
 
@@ -686,16 +469,14 @@ export const getAllAlbums = () => {
  */
 export const getSongsByAlbum = (albumName) => {
   const database = getDatabase()
-
   const actualAlbumName = albumName || '未知专辑'
 
-  // 使用 LIKE 匹配逗号分隔的 listId
   const songs = database.prepare(`
     SELECT m.*, o.\`order\`
     FROM my_list_music_info m
     LEFT JOIN my_list_music_info_order o
       ON m.id = o.musicInfoId AND o.listId = 'default'
-    WHERE (m.listId = 'default' OR m.listId LIKE 'default,%' OR m.listId LIKE '%,default,%' OR m.listId LIKE '%,default')
+    WHERE m.listId = 'default'
       AND (m.album = ? OR ((m.album IS NULL OR m.album = '') AND ? = '未知专辑'))
     ORDER BY o.\`order\`
   `).all(actualAlbumName, actualAlbumName)
@@ -718,13 +499,12 @@ export const getSongsByAlbum = (albumName) => {
 export const getAllSingers = () => {
   const database = getDatabase()
 
-  // 获取所有歌曲
   const songs = database.prepare(`
     SELECT m.*, o.\`order\`
     FROM my_list_music_info m
     LEFT JOIN my_list_music_info_order o
       ON m.id = o.musicInfoId AND o.listId = 'default'
-    WHERE (m.listId = 'default' OR m.listId LIKE 'default,%' OR m.listId LIKE '%,default,%' OR m.listId LIKE '%,default')
+    WHERE m.listId = 'default'
     ORDER BY o.\`order\`
   `).all()
 
@@ -778,7 +558,7 @@ export const getSongsBySinger = (singerName) => {
     FROM my_list_music_info m
     LEFT JOIN my_list_music_info_order o
       ON m.id = o.musicInfoId AND o.listId = 'default'
-    WHERE (m.listId = 'default' OR m.listId LIKE 'default,%' OR m.listId LIKE '%,default,%' OR m.listId LIKE '%,default')
+    WHERE m.listId = 'default'
       AND (m.singer = ? OR ((m.singer IS NULL OR m.singer = '') AND ? = '未知艺术家'))
     ORDER BY o.\`order\`
   `).all(actualSingerName, actualSingerName)
@@ -807,10 +587,8 @@ export default {
   removeSongFromPlaylist,
   updateSongsOrder,
   updateSongInfo,
-  isMediaFile,
   getAllAlbums,
   getSongsByAlbum,
   getAllSingers,
-  getSongsBySinger,
-  migrateListIdData
+  getSongsBySinger
 }

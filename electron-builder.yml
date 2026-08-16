@@ -1,10 +1,15 @@
-appId: com.electron.app
+appId: com.yg-music
 productName: yg-music
 directories:
   buildResources: build
 files:
   - '!**/.vscode/*'
   - '!src/*'
+  - '!tests/*'
+  - '!out/tests/*'
+  - '!scripts/*'
+  - '!dev-resources/*'
+  - '!.claude/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'

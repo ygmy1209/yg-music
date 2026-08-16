@@ -10,7 +10,7 @@
       <button class="control-btn minimize" @click="handleMinimize" title="最小化">
         <svg viewBox="0 0 12 12"><rect x="2" y="5.5" width="8" height="1" /></svg>
       </button>
-      <button class="control-btn maximize" @click="handleMaximize" :title="isMaximized ? '还原' : '最大化'">
+      <button class="control-btn maximize" @click="handleMaximize" title="最大化">
         <svg viewBox="0 0 12 12">
           <rect
             x="2"
@@ -34,32 +34,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-
-// 窗口是否最大化
-const isMaximized = ref(false)
-
 // ========== 窗口控制 ==========
 
 const handleMinimize = () => {
   window.windowAPI.minimize()
 }
 
-const handleMaximize = async () => {
+const handleMaximize = () => {
   window.windowAPI.maximize()
-  // 更新最大化状态
-  isMaximized.value = await window.windowAPI.isMaximized()
 }
 
 const handleClose = () => {
   window.windowAPI.close()
 }
-
-// ========== 初始化 ==========
-
-onMounted(async () => {
-  isMaximized.value = await window.windowAPI.isMaximized()
-})
 </script>
 
 <style lang="scss" scoped>

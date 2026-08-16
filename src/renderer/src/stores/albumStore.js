@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useSongSelection } from '@/composables/useSongSelection'
 import { dbToDisplaySongs } from '@/utils/songTransform'
+import { parallelLimit } from '@/utils/parallelLimit'
 import { LIST } from '@/constants'
 
 export const useAlbumStore = defineStore('album', () => {
@@ -51,13 +52,11 @@ export const useAlbumStore = defineStore('album', () => {
     )
 
     // 批量并行加载，限制并发数
-    for (let i = 0; i < albumList.length; i += LIST.BATCH_CONCURRENCY) {
-      const batch = albumList.slice(i, i + LIST.BATCH_CONCURRENCY)
-      await Promise.all(batch.map(album => {
-        const firstSong = album.songs[0]
-        return loadAlbumCover(album.name, firstSong.id)
-      }))
-    }
+    await parallelLimit(
+      albumList,
+      (album) => loadAlbumCover(album.name, album.songs[0].id),
+      LIST.BATCH_CONCURRENCY
+    )
   }
 
   // 加载单个专辑封面
@@ -67,7 +66,7 @@ export const useAlbumStore = defineStore('album', () => {
       if (result.success) {
         albumCovers.value[albumName] = result.data
       }
-    } catch (error) {
+    } catch {
       // 静默失败，保持占位图
     }
   }

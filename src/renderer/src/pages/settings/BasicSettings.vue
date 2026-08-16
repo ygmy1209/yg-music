@@ -67,6 +67,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import SettingItem from '@/components/ui/SettingItem.vue'
 import OptionGroup from '@/components/ui/OptionGroup.vue'
 import Select from '@/components/ui/Select.vue'
+import { UI } from '@/constants'
 
 const settingsStore = useSettingsStore()
 
@@ -82,35 +83,13 @@ const settings = ref({
 })
 
 // 主题颜色列表
-const themeList = [
-  { name: '默认青色', value: '#79e3f1' },
-  { name: '绿色', value: '#52c41a' },
-  { name: '蓝色', value: '#1890ff' },
-  { name: '紫色', value: '#722ed1' },
-  { name: '粉色', value: '#eb2f96' },
-  { name: '橙色', value: '#fa8c16' }
-]
+const themeList = UI.THEME_COLORS
 
 // 窗口尺寸选项
-const windowSizeOptions = [
-  { label: '更小', value: 0 },
-  { label: '小', value: 1 },
-  { label: '中', value: 2 },
-  { label: '大', value: 3 },
-  { label: '更大', value: 4 },
-  { label: '超大', value: 5 },
-  { label: '巨大', value: 6 }
-]
+const windowSizeOptions = UI.WINDOW_SIZES.map((label, value) => ({ label, value }))
 
 // 字体大小选项
-const fontSizeOptions = [
-  { label: '更小', value: 0 },
-  { label: '小', value: 1 },
-  { label: '标准', value: 2 },
-  { label: '大', value: 3 },
-  { label: '更大', value: 4 },
-  { label: '非常大', value: 5 }
-]
+const fontSizeOptions = UI.FONT_SIZES.map((label, value) => ({ label, value }))
 
 // 系统字体列表
 const systemFonts = ref([])

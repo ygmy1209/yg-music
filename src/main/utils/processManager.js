@@ -35,8 +35,3 @@ export const killAllProcesses = () => {
   }
   activeProcesses.clear()
 }
-
-export default {
-  registerProcess,
-  killAllProcesses
-}

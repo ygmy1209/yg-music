@@ -91,7 +91,7 @@ class Store {
     if (key === undefined) {
       return this.data
     }
-    return this.data.hasOwnProperty(key) ? this.data[key] : defaultValue
+    return Object.prototype.hasOwnProperty.call(this.data, key) ? this.data[key] : defaultValue
   }
 
   /**
@@ -127,7 +127,7 @@ class Store {
    * 检查 key 是否存在
    */
   has(key) {
-    return this.data.hasOwnProperty(key)
+    return Object.prototype.hasOwnProperty.call(this.data, key)
   }
 
   /**
@@ -161,5 +161,3 @@ export const getStore = (name) => {
   }
   return storeCache.get(name)
 }
-
-export default Store

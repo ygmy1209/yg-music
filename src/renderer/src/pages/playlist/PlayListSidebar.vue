@@ -74,7 +74,6 @@ const editingId = ref(null)        // 正在编辑的歌单 id（新建时为临
 const editingValue = ref('')       // 编辑中的值
 const isNewMode = ref(false)       // 是否为新建模式
 const editInputRef = ref(null)
-const playlistListRef = ref(null)  // 列表容器引用
 
 // 检查歌单名是否重复（排除当前编辑的歌单）
 const isNameDuplicate = (name) => {
@@ -231,7 +230,7 @@ const cancelEdit = () => {
 
 // ========== 选择歌单 ==========
 
-const handleSelect = (id, event) => {
+const handleSelect = (id) => {
   // 编辑状态不触发选择
   if (editingId.value === id) return
   playlistStore.selectPlaylist(id)

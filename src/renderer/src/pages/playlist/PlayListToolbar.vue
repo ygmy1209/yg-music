@@ -132,7 +132,7 @@ const handleSelectSong = async (song) => {
   searchInputRef.value?.blur()
 
   // 清除筛选状态，显示全部歌曲
-  playlistStore.isSearchFiltered = false
+  playlistStore.exitSearchFilter()
 
   // 等待 DOM 更新后再设置高亮（因为 displaySongs 可能变化）
   await nextTick()

@@ -148,7 +148,7 @@ function extractLyricsFromNativeTags(nativeTags) {
 
     // 先查找同步歌词
     for (const field of SYNCED_LYRICS_FIELDS) {
-      const lyrics = findLyricsInTags(tags, field, tagType)
+      const lyrics = findLyricsInTags(tags, field)
       if (lyrics) {
         // 检查是否包含时间标签
         const hasTimestamps = /\[\d{2}:\d{2}/.test(lyrics)
@@ -161,7 +161,7 @@ function extractLyricsFromNativeTags(nativeTags) {
 
     // 没找到同步歌词, 查找未同步歌词
     for (const field of UNSYNCED_LYRICS_FIELDS) {
-      const lyrics = findLyricsInTags(tags, field, tagType)
+      const lyrics = findLyricsInTags(tags, field)
       if (lyrics) {
         console.log('[元数据] 从', field, '找到未同步歌词')
         return lyrics
@@ -175,7 +175,7 @@ function extractLyricsFromNativeTags(nativeTags) {
 /**
  * 在标签数组中查找指定字段的歌词
  */
-function findLyricsInTags(tags, field, tagType) {
+function findLyricsInTags(tags, field) {
   // 处理 TXXX:xxx 格式的自定义字段
   if (field.startsWith('TXXX:')) {
     const description = field.slice(5)
@@ -220,65 +220,6 @@ function findLyricsInTags(tags, field, tagType) {
   }
 
   return null
-}
-
-/**
- * 解析 LRC 歌词格式
- * @param {string} lrcText - LRC 格式的歌词文本
- * @returns {Array} 解析后的歌词数组 [{ time: 秒, text: '歌词文本' }, ...]
- */
-export function parseLrc(lrcText) {
-  if (!lrcText || typeof lrcText !== 'string') return []
-
-  const lines = lrcText.split('\n')
-  const result = []
-  let metaOrder = 0 // 保证元数据的先后顺序
-
-  lines.forEach(line => {
-    line = line.trim()
-    if (!line) return
-
-    const match = line.match(/\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/)
-    if (match) {
-      const minutes = parseInt(match[1])
-      const seconds = parseInt(match[2])
-      const milliseconds = match[3] ? parseInt(match[3].padEnd(3, '0')) : 0
-      const time = minutes * 60 + seconds + milliseconds / 1000
-      const text = match[4].trim()
-      // 过滤掉 awlrc 标记，保留创作者、编曲等信息
-      if (text && !text.includes('awlrc')) {
-        result.push({ time, text })
-      }
-    } else {
-      // 捕获 [ti:归期] 或 [ar:钱润玉] 这类无时间戳但包含元信息的行
-      const metaMatch = line.match(/^\[([a-zA-Z]+):(.*?)\]$/)
-      if (metaMatch) {
-        const tag = metaMatch[1].toLowerCase()
-        const text = metaMatch[2].trim()
-
-        // 忽略纯技术性标签
-        const ignoreTags = ['offset', 'length', 're', 've']
-        if (ignoreTags.includes(tag)) return
-
-        const tagMap = { ti: '标题', ar: '歌手', al: '专辑', au: '作词', by: '歌词制作' }
-        const displayTag = tagMap[tag] || tag.toUpperCase()
-
-        if (text && !text.includes('awlrc')) {
-           result.push({ time: metaOrder * 0.0001, text: `${displayTag}: ${text}`, isMeta: true })
-           metaOrder++
-        }
-      } else if (line.includes(':') || line.includes('：')) {
-        // 捕获形如 "作词: 于洛萱" 的裸文本元数据
-        if (!line.includes('awlrc')) {
-           result.push({ time: metaOrder * 0.0001, text: line, isMeta: true })
-           metaOrder++
-        }
-      }
-    }
-  })
-
-  result.sort((a, b) => a.time - b.time)
-  return result
 }
 
 /**
@@ -394,7 +335,7 @@ export const getAudioMetadata = async (filePath) => {
       console.log('[元数据] 歌词不是字符串，尝试转换:', typeof lyrics)
       try {
         lyrics = String(lyrics)
-      } catch (e) {
+      } catch {
         lyrics = null
       }
     }
@@ -662,7 +603,7 @@ export const writeMetadata = (filePath, metadata) => {
           if (fs.existsSync(tempPath)) {
             try {
               fs.unlinkSync(tempPath)
-            } catch (e) {
+            } catch {
               // 忽略清理错误
             }
           }
@@ -673,15 +614,4 @@ export const writeMetadata = (filePath, metadata) => {
       resolve({ success: false, error: `FFmpeg 加载失败: ${err.message}` })
     })
   })
-}
-
-export default {
-  isAudioFile,
-  isVideoFile,
-  isSupportedMedia,
-  getAudioMetadata,
-  getAudioDetailedInfo,
-  getAudioCover,
-  parseLrc,
-  writeMetadata
 }

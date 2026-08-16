@@ -396,7 +396,7 @@ export const usePlayerStore = defineStore('player', () => {
   })
   // ========== 监听变化自动保存 ==========
   // 监听播放进度变化（节流保存）
-  // 每次进度变化都尝试调用节流函数，节流函数保证最多 2 秒执行一次
+  // 每次进度变化都尝试调用节流函数，节流函数保证 5 秒内最多执行一次
   watch(() => playProgress.currentTime, () => {
     throttledSavePlayInfo()
   })

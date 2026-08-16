@@ -3,8 +3,9 @@
  * 负责创建窗口、初始化数据库、处理 IPC 通信
  */
 
-import { app, shell, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initDatabase, closeDatabase } from './db/database.js'
@@ -15,6 +16,7 @@ import { killAllProcesses } from './utils/processManager.js'
 let mainWindow = null
 let tray = null
 let isQuitting = false
+let isClosing = false
 
 /**
  * 创建系统托盘
@@ -70,7 +72,7 @@ function createWindow() {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true
     }
   })
@@ -103,6 +105,16 @@ function createWindow() {
     return { action: 'deny' }
   })
 
+  // 阻止渲染进程导航到非应用页面
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const devServerUrl = is.dev ? process.env['ELECTRON_RENDERER_URL'] : null
+    const indexFileUrl = pathToFileURL(join(__dirname, '../renderer/index.html')).toString()
+
+    if (devServerUrl && url.startsWith(devServerUrl)) return
+    if (url.startsWith(indexFileUrl)) return
+    event.preventDefault()
+  })
+
   // 开发模式加载本地服务器，生产模式加载打包文件
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -112,9 +124,6 @@ function createWindow() {
 }
 
 // ========== 应用生命周期 ==========
-
-// 标记应用是否正在退出
-let isClosing = false
 
 /**
  * 统一清理并退出
@@ -175,20 +184,16 @@ app.whenReady().then(() => {
   // 创建托盘
   createTray()
 
-  // 开发模式下 F12 打开开发者工具
+  // 开发模式下 F12 打开开发者工具（需在 createWindow 前注册，主窗口才会生效）
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
   createWindow()
-
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
 })
 
 // 应用即将退出时清理
-app.on('before-quit', (event) => {
+app.on('before-quit', () => {
   // 如果已经处理过，直接返回
   if (isClosing) return
 
@@ -214,9 +219,11 @@ app.on('window-all-closed', () => {
   }
 })
 
-// macOS 上点击 Dock 图标时显示窗口
+// macOS 上点击 Dock 图标时显示或重建窗口
 app.on('activate', () => {
-  if (mainWindow && !mainWindow.isVisible()) {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+  } else if (mainWindow && !mainWindow.isVisible()) {
     mainWindow.show()
   }
 })

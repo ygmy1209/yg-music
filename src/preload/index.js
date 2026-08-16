@@ -1,13 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 
 // ========== 窗口控制 API ==========
 const windowAPI = {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   fullscreen: () => ipcRenderer.send('window-fullscreen'),
-  close: () => ipcRenderer.send('window-close'),
-  isMaximized: () => ipcRenderer.invoke('window-is-maximized')
+  close: () => ipcRenderer.send('window-close')
 }
 
 // ========== 数据库 API ==========
@@ -79,7 +77,6 @@ const settingAPI = {
     return () => ipcRenderer.removeListener('setting:changed', handler)
   },
   resizeWindow: (sizeIndex) => ipcRenderer.invoke('window:resize', sizeIndex),
-  setCloseBehavior: (minimizeToTray) => ipcRenderer.send('window:setCloseBehavior', minimizeToTray),
   setTaskProgress: (progress) => ipcRenderer.send('taskbar:progress', progress)
 }
 
@@ -95,32 +92,13 @@ const transcodeAPI = {
 }
 
 // ========== 暴露 API 到渲染进程 ==========
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('windowAPI', windowAPI)
-    contextBridge.exposeInMainWorld('dbAPI', dbAPI)
-    contextBridge.exposeInMainWorld('dialogAPI', dialogAPI)
-    contextBridge.exposeInMainWorld('musicAPI', musicAPI)
-    contextBridge.exposeInMainWorld('settingAPI', settingAPI)
-    contextBridge.exposeInMainWorld('fileAPI', fileAPI)
-    contextBridge.exposeInMainWorld('playInfoAPI', playInfoAPI)
-    contextBridge.exposeInMainWorld('fontAPI', fontAPI)
-    contextBridge.exposeInMainWorld('hotKeyAPI', hotKeyAPI)
-    contextBridge.exposeInMainWorld('transcodeAPI', transcodeAPI)
-  } catch (error) {
-    console.error('预加载脚本错误:', error)
-  }
-} else {
-  window.electron = electronAPI
-  window.windowAPI = windowAPI
-  window.dbAPI = dbAPI
-  window.dialogAPI = dialogAPI
-  window.musicAPI = musicAPI
-  window.settingAPI = settingAPI
-  window.fileAPI = fileAPI
-  window.playInfoAPI = playInfoAPI
-  window.fontAPI = fontAPI
-  window.hotKeyAPI = hotKeyAPI
-  window.transcodeAPI = transcodeAPI
-}
+contextBridge.exposeInMainWorld('windowAPI', windowAPI)
+contextBridge.exposeInMainWorld('dbAPI', dbAPI)
+contextBridge.exposeInMainWorld('dialogAPI', dialogAPI)
+contextBridge.exposeInMainWorld('musicAPI', musicAPI)
+contextBridge.exposeInMainWorld('settingAPI', settingAPI)
+contextBridge.exposeInMainWorld('fileAPI', fileAPI)
+contextBridge.exposeInMainWorld('playInfoAPI', playInfoAPI)
+contextBridge.exposeInMainWorld('fontAPI', fontAPI)
+contextBridge.exposeInMainWorld('hotKeyAPI', hotKeyAPI)
+contextBridge.exposeInMainWorld('transcodeAPI', transcodeAPI)

@@ -9,6 +9,8 @@ import { initHotKey, registerHotKeyHandlers } from './hotKeyHandlers.js'
 import { initPlayInfo, registerPlayInfoHandlers } from './playInfoHandlers.js'
 import { registerPlaylistHandlers } from './playlistHandlers.js'
 import { registerSongHandlers } from './songHandlers.js'
+import { registerDialogHandlers } from './dialogHandlers.js'
+import { registerMusicHandlers } from './musicHandlers.js'
 import { registerFileHandlers } from './fileHandlers.js'
 import { registerTranscodeHandlers } from './transcodeHandlers.js'
 import { registerWindowHandlers, setMainWindow } from './windowHandlers.js'
@@ -37,6 +39,8 @@ export const registerIpcHandlers = () => {
   registerPlayInfoHandlers()
   registerPlaylistHandlers()
   registerSongHandlers()
+  registerDialogHandlers()
+  registerMusicHandlers()
   registerFileHandlers()
   registerTranscodeHandlers()
   registerWindowHandlers()
@@ -45,7 +49,7 @@ export const registerIpcHandlers = () => {
   console.log('[IPC] 所有处理器注册完成')
 }
 
-// 兼容旧接口 - 以下函数已移至对应模块，保留导出以兼容旧代码
+// 统一导出主进程内部常用接口（如 main/index.js 直接读取设置）
 export { getSetting, getSettingValue, updateSetting } from './settingHandlers.js'
 export { getHotKeyConfig, saveHotKeyConfig } from './hotKeyHandlers.js'
 export { getPlayInfo, savePlayInfo } from './playInfoHandlers.js'
