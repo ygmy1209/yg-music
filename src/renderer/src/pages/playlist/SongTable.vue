@@ -169,6 +169,14 @@ const isCtrlPressed = ref(false)
 const isShiftPressed = ref(false)
 
 const handleKeyDown = (e) => {
+  // 输入框内不拦截键盘，避免搜索框的 Ctrl+A 等被抢走
+  const target = e.target
+  const isInput =
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable
+  if (isInput) return
+
   if (e.key === 'Control') isCtrlPressed.value = true
   if (e.key === 'Shift') isShiftPressed.value = true
 

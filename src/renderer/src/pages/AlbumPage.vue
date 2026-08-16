@@ -136,6 +136,16 @@ onUnmounted(() => {
 
 // 键盘事件
 const handleKeyDown = (e) => {
+  // 输入框内不拦截键盘
+  const target = e.target
+  if (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable
+  ) {
+    return
+  }
+
   if (e.key === 'Control') isCtrlPressed.value = true
   if (e.key === 'Shift') isShiftPressed.value = true
 
