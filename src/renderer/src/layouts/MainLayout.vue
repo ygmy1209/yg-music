@@ -15,10 +15,14 @@
 
       <!-- 内容区域（根据导航切换页面） -->
       <div class="content-area">
-        <PlayListPage v-if="activeNav === 'playlist'" />
-        <AlbumPage v-else-if="activeNav === 'album'" />
-        <SingerPage v-else-if="activeNav === 'singer'" />
-        <SettingsPage v-else-if="activeNav === 'settings'" />
+        <Transition name="page-fade" mode="out-in">
+          <div :key="activeNav" class="page-wrapper">
+            <PlayListPage v-if="activeNav === 'playlist'" />
+            <AlbumPage v-else-if="activeNav === 'album'" />
+            <SingerPage v-else-if="activeNav === 'singer'" />
+            <SettingsPage v-else-if="activeNav === 'settings'" />
+          </div>
+        </Transition>
 
         <!-- 全局对话框遮罩层（默认：仅覆盖 content-area） -->
         <Transition name="overlay">
@@ -160,6 +164,28 @@ watch(activeNav, () => {
       background-color: var(--bg-primary);
       position: relative;
     }
+  }
+}
+
+// 页面切换：轻量淡入淡出，不做花哨动画
+.page-wrapper {
+  height: 100%;
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-enter-active,
+  .page-fade-leave-active {
+    transition: none;
   }
 }
 

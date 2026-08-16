@@ -66,7 +66,7 @@
           </div>
         </div>
 
-        <div class="song-list-wrapper">
+        <div ref="songListWrapperRef" class="song-list-wrapper">
           <div class="song-list">
             <div
               v-for="(song, index) in singerStore.currentSingerSongs"
@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSingerStore } from '@/stores/singerStore'
 import { usePlayerStore } from '@/stores/playerStore'
 
@@ -107,6 +107,15 @@ const playerStore = usePlayerStore()
 // 键盘状态
 const isCtrlPressed = ref(false)
 const isShiftPressed = ref(false)
+const songListWrapperRef = ref(null)
+
+// 切换歌手时回到列表顶部，避免沿用上一个歌手的滚动位置
+watch(
+  () => singerStore.currentSinger?.name,
+  () => {
+    songListWrapperRef.value?.scrollTo({ top: 0 })
+  }
+)
 
 // 初始化
 onMounted(() => {

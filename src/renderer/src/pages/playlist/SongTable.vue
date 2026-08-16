@@ -251,6 +251,23 @@ watch(highlightedSongId, async (newId) => {
   }
 })
 
+// 切换歌单或进入搜索筛选时回到顶部，避免沿用上一个列表的滚动位置
+watch(
+  () => playlistStore.currentPlaylistId,
+  () => {
+    tableBodyRef.value?.scrollTo({ top: 0 })
+  }
+)
+
+watch(
+  () => playlistStore.isSearchFiltered,
+  (filtered) => {
+    if (filtered) {
+      tableBodyRef.value?.scrollTo({ top: 0 })
+    }
+  }
+)
+
 // ========== 右键菜单 ==========
 
 const contextMenu = ref({
