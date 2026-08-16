@@ -8,6 +8,7 @@ import { ref, watch, toRaw } from 'vue'
 import { UI } from '@/constants'
 
 // 本地默认值（仅在 IPC 不可用时的降级方案）
+// 注意：必须与 src/main/utils/defaultSetting.js 保持一致，修改时两处同步
 const localDefaults = {
   'common.showAnimation': true,
   'common.showRandomAnimation': true,
@@ -18,18 +19,18 @@ const localDefaults = {
   'common.fontFamily': '',
 
   'player.startupAutoPlay': false,
-  'player.isSavePlayTime': false,
+  'player.isSavePlayTime': true,
   'player.autoSkipOnError': false,
-  'player.isShowTaskProgress': false,
+  'player.isShowTaskProgress': true,
   'player.mediaDeviceId': 'default',
   'player.volume': 1,
   'player.isMute': false,
   'player.playbackRate': 1,
 
-  'playDetail.dragLyric': false,
+  'playDetail.dragLyric': true,
   'playDetail.lyricAlign': 'center',
 
-  'list.addSongPosition': 'bottom'
+  'list.addSongPosition': 'top'
 }
 
 export const useSettingsStore = defineStore('settings', () => {
