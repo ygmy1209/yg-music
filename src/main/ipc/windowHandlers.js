@@ -45,7 +45,11 @@ export const registerWindowHandlers = () => {
   // 最大化/还原窗口
   ipcMain.on('window-maximize', () => {
     if (mainWindow) {
-      if (mainWindow.isMaximized()) {
+      if (mainWindow.isFullScreen()) {
+        // 全屏状态下，先标记最大化再退出全屏，避免中间缩小动画
+        mainWindow.maximize()
+        mainWindow.setFullScreen(false)
+      } else if (mainWindow.isMaximized()) {
         mainWindow.unmaximize()
       } else {
         mainWindow.maximize()

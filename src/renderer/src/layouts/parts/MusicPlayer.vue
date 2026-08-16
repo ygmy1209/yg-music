@@ -459,19 +459,19 @@ const handleTitleBarMouseLeave = () => {
 
 // 窗口控制
 const minimizeWindow = () => {
-  window.electron.ipcRenderer.send('window-minimize')
+  window.windowAPI.minimize()
 }
 
 const maximizeWindow = () => {
-  window.electron.ipcRenderer.send('window-maximize')
+  window.windowAPI.maximize()
 }
 
 const fullscreenWindow = () => {
-  window.electron.ipcRenderer.send('window-fullscreen')
+  window.windowAPI.fullscreen()
 }
 
 const closeWindow = () => {
-  window.electron.ipcRenderer.send('window-close')
+  window.windowAPI.close()
 }
 
 // ==================== 媒体筛选 ====================

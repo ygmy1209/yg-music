@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 
 // ========== 窗口控制 API ==========
 const windowAPI = {
@@ -95,32 +94,13 @@ const transcodeAPI = {
 }
 
 // ========== 暴露 API 到渲染进程 ==========
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('windowAPI', windowAPI)
-    contextBridge.exposeInMainWorld('dbAPI', dbAPI)
-    contextBridge.exposeInMainWorld('dialogAPI', dialogAPI)
-    contextBridge.exposeInMainWorld('musicAPI', musicAPI)
-    contextBridge.exposeInMainWorld('settingAPI', settingAPI)
-    contextBridge.exposeInMainWorld('fileAPI', fileAPI)
-    contextBridge.exposeInMainWorld('playInfoAPI', playInfoAPI)
-    contextBridge.exposeInMainWorld('fontAPI', fontAPI)
-    contextBridge.exposeInMainWorld('hotKeyAPI', hotKeyAPI)
-    contextBridge.exposeInMainWorld('transcodeAPI', transcodeAPI)
-  } catch (error) {
-    console.error('预加载脚本错误:', error)
-  }
-} else {
-  window.electron = electronAPI
-  window.windowAPI = windowAPI
-  window.dbAPI = dbAPI
-  window.dialogAPI = dialogAPI
-  window.musicAPI = musicAPI
-  window.settingAPI = settingAPI
-  window.fileAPI = fileAPI
-  window.playInfoAPI = playInfoAPI
-  window.fontAPI = fontAPI
-  window.hotKeyAPI = hotKeyAPI
-  window.transcodeAPI = transcodeAPI
-}
+contextBridge.exposeInMainWorld('windowAPI', windowAPI)
+contextBridge.exposeInMainWorld('dbAPI', dbAPI)
+contextBridge.exposeInMainWorld('dialogAPI', dialogAPI)
+contextBridge.exposeInMainWorld('musicAPI', musicAPI)
+contextBridge.exposeInMainWorld('settingAPI', settingAPI)
+contextBridge.exposeInMainWorld('fileAPI', fileAPI)
+contextBridge.exposeInMainWorld('playInfoAPI', playInfoAPI)
+contextBridge.exposeInMainWorld('fontAPI', fontAPI)
+contextBridge.exposeInMainWorld('hotKeyAPI', hotKeyAPI)
+contextBridge.exposeInMainWorld('transcodeAPI', transcodeAPI)
