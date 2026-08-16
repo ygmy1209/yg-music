@@ -87,8 +87,12 @@ const isNameDuplicate = (name) => {
   })
 }
 
+// 同名确认弹窗是否已打开（防止输入框 blur 再次触发 confirmEdit 造成弹窗叠加）
+const isDuplicateConfirmOpen = ref(false)
+
 // 处理失焦事件
 const handleBlur = () => {
+  if (isDuplicateConfirmOpen.value) return
   confirmEdit()
 }
 
@@ -163,6 +167,7 @@ const confirmEdit = async (forceCreate = false) => {
   // 检查名字是否重复（非强制创建时）
   if (!forceCreate && name && isNameDuplicate(name)) {
     // 弹出确认对话框
+    isDuplicateConfirmOpen.value = true
     dialogStore.openDialog({
       component: ConfirmDialogContent,
       props: {
@@ -170,10 +175,12 @@ const confirmEdit = async (forceCreate = false) => {
         cancelText: '不要！',
         confirmText: '是的',
         onConfirm: () => {
+          isDuplicateConfirmOpen.value = false
           // 强制创建
           doConfirmEdit(name)
         },
         onCancel: () => {
+          isDuplicateConfirmOpen.value = false
           // 取消创建
           cancelEdit()
         }
@@ -226,6 +233,7 @@ const cancelEdit = () => {
   editingId.value = null
   editingValue.value = ''
   isNewMode.value = false
+  isDuplicateConfirmOpen.value = false
 }
 
 // ========== 选择歌单 ==========
@@ -311,6 +319,14 @@ onUnmounted(() => {
   window.removeEventListener('scroll', handleWindowEvent, true)
   window.removeEventListener('resize', handleWindowEvent)
   window.removeEventListener('blur', handleWindowEvent)
+
+  // 页面切换时清理尚未确认的临时歌单项，避免空名项残留在其他页面可见
+  if (isNewMode.value) {
+    const tempIndex = playlistStore.playlists.findIndex(p => p.id === editingId.value)
+    if (tempIndex > -1) {
+      playlistStore.playlists.splice(tempIndex, 1)
+    }
+  }
 })
 </script>
 

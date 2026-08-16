@@ -85,14 +85,20 @@ export const useAlbumStore = defineStore('album', () => {
   }
 
   // 选择专辑，加载专辑内歌曲
+  // 使用令牌丢弃过期请求：快速切换专辑时，旧专辑的结果不能覆盖新专辑
+  let albumSongsToken = 0
+
   const selectAlbum = async (album) => {
+    const token = ++albumSongsToken
     currentAlbum.value = album
     selection.clearSelection()
     try {
       const songs = await window.dbAPI.getSongsByAlbum(album.name)
+      if (token !== albumSongsToken) return
       // 使用转换工具函数
       currentAlbumSongs.value = dbToDisplaySongs(songs)
     } catch (error) {
+      if (token !== albumSongsToken) return
       console.error('加载专辑歌曲失败:', error)
       currentAlbumSongs.value = []
     }

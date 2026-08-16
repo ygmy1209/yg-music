@@ -36,13 +36,19 @@ export const useSingerStore = defineStore('singer', () => {
   }
 
   // 选择歌手，加载歌手内歌曲
+  // 使用令牌丢弃过期请求：快速切换歌手时，旧歌手的结果不能覆盖新歌手
+  let singerSongsToken = 0
+
   const selectSinger = async (singer) => {
+    const token = ++singerSongsToken
     currentSinger.value = singer
     selection.clearSelection()
     try {
       const songs = await window.dbAPI.getSongsBySinger(singer.name)
+      if (token !== singerSongsToken) return
       currentSingerSongs.value = dbToDisplaySongs(songs)
     } catch {
+      if (token !== singerSongsToken) return
       console.error('加载歌手歌曲失败')
       currentSingerSongs.value = []
     }

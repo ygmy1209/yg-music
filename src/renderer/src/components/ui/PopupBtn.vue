@@ -191,12 +191,19 @@ watch(
   }
 )
 
+// 窗口尺寸变化时重新定位，避免浮层停在旧位置
+const handleWindowResize = () => {
+  if (visible.value) updatePosition()
+}
+
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick)
+  window.addEventListener('resize', handleWindowResize)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick)
+  window.removeEventListener('resize', handleWindowResize)
   clearAllTimeouts()
 })
 

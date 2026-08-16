@@ -1361,6 +1361,10 @@ function onMediaEnded() {
 function onMediaError(e) {
   console.error('[事件] 媒体错误:', e)
 
+  // 播放失败时先同步为停止状态，避免 UI 停留在“播放中”
+  isPlaying.value = false
+  playerStore.setPlaying(false)
+
   // 检查是否需要自动跳过错误歌曲
   const autoSkipOnError = settingsStore.settings['player.autoSkipOnError']
   if (autoSkipOnError) {

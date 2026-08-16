@@ -163,6 +163,12 @@ export const usePlayerStore = defineStore('player', () => {
         }
       }
 
+      // 恢复期间用户已经手动选择了歌曲，则不要覆盖用户操作
+      if (currentSong.value) {
+        isRestoring.value = false
+        return false
+      }
+
       // 设置播放来源状态
       currentPlaylistId.value = null
       currentAlbumName.value = null
@@ -218,6 +224,11 @@ export const usePlayerStore = defineStore('player', () => {
   }
   // 播放/暂停切换
   const togglePlay = () => {
+    // 没有可播放歌曲时保持停止状态，避免 UI 卡在“播放中”
+    if (!currentSong.value) {
+      isPlaying.value = false
+      return
+    }
     isPlaying.value = !isPlaying.value
   }
   // 设置播放状态
