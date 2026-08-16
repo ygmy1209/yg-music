@@ -2,7 +2,7 @@
  * 歌曲相关 IPC 处理器
  */
 
-import { ipcMain, shell } from 'electron'
+import { ipcMain } from 'electron'
 import fs from 'fs'
 import db from '../db/database.js'
 import { writeMetadata } from '../utils/musicMetadata.js'
@@ -58,10 +58,5 @@ export const registerSongHandlers = () => {
     } catch (error) {
       return { success: false, error: error.message }
     }
-  })
-
-  // 在文件资源管理器中显示文件
-  ipcMain.handle('file:showInFolder', (event, filePath) => {
-    return shell.showItemInFolder(filePath)
   })
 }
