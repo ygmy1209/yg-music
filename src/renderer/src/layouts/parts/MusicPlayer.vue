@@ -1035,6 +1035,7 @@ function startProgressDrag(event) {
   updateDragProgress(event)
   document.addEventListener('mousemove', onProgressDrag)
   document.addEventListener('mouseup', stopProgressDrag)
+  window.addEventListener('blur', stopProgressDrag)
 }
 
 // 进度条拖拽中（只更新视觉，不 seek）
@@ -1062,6 +1063,7 @@ function stopProgressDrag() {
   isDraggingProgress.value = false
   document.removeEventListener('mousemove', onProgressDrag)
   document.removeEventListener('mouseup', stopProgressDrag)
+  window.removeEventListener('blur', stopProgressDrag)
 }
 
 function seekToLyric(time) {

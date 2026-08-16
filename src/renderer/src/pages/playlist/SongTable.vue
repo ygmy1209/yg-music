@@ -188,6 +188,13 @@ const handleKeyUp = (e) => {
   if (e.key === 'Shift') isShiftPressed.value = false
 }
 
+// 窗口失焦时重置修饰键状态，避免 Alt-Tab 回来出现“卡 Ctrl/Shift”
+const handleWindowBlur = () => {
+  isCtrlPressed.value = false
+  isShiftPressed.value = false
+  closeContextMenu()
+}
+
 // ========== 排序 ==========
 
 const sortField = computed(() => playlistStore.sortField)
@@ -280,8 +287,9 @@ const handleContextMenu = (event, song) => {
 
   contextMenu.value = {
     show: true,
-    x: event.clientX,
-    y: event.clientY,
+    // 菜单约 160px 宽、220px 高，钳制在视口内避免贴边后溢出
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 168)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 228)),
     song,
     // 标记是否为批量操作模式（右键的歌曲在选中列表中）
     isBatchMode: playlistStore.isSelected(song.id)
@@ -290,6 +298,15 @@ const handleContextMenu = (event, song) => {
 
 const closeContextMenu = () => {
   contextMenu.value.show = false
+}
+
+// 滚动/缩放/Escape 时关闭菜单，避免菜单停留在过时位置
+const handleContextMenuEscape = (e) => {
+  if (e.key === 'Escape') closeContextMenu()
+}
+
+const handleWindowEvent = () => {
+  closeContextMenu()
 }
 
 // 显示添加到歌单对话框
@@ -416,12 +433,20 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
+  document.addEventListener('keydown', handleContextMenuEscape)
+  window.addEventListener('scroll', handleWindowEvent, true)
+  window.addEventListener('resize', handleWindowEvent)
+  window.addEventListener('blur', handleWindowBlur)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
+  document.removeEventListener('keydown', handleContextMenuEscape)
+  window.removeEventListener('scroll', handleWindowEvent, true)
+  window.removeEventListener('resize', handleWindowEvent)
+  window.removeEventListener('blur', handleWindowBlur)
 })
 
 // ========== 播放 ==========

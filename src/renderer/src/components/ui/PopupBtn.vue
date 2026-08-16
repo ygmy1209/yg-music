@@ -44,6 +44,11 @@ const props = defineProps({
     type: String,
     default: 'both',
   },
+  // 保持打开（例如拖动弹窗内的滑块时），pinned 为 true 时 mouseleave 不隐藏
+  pinned: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -64,6 +69,7 @@ const arrowStyle = reactive({
 
 let showTimeout = null
 let hideTimeout = null
+const isPointerInside = ref(false)
 
 // 清除所有定时器
 const clearAllTimeouts = () => {
@@ -88,11 +94,13 @@ const show = () => {
   }, 100)
 }
 
-// 隐藏弹窗
+// 隐藏弹窗（pinned 时忽略，保持拖动/交互不被打断）
 const hide = () => {
+  if (props.pinned) return
   clearAllTimeouts()
   if (!visible.value) return
   hideTimeout = setTimeout(() => {
+    if (props.pinned) return
     visible.value = false
     emit('update:modelValue', false)
   }, 100)
@@ -114,12 +122,14 @@ const handleClick = (e) => {
 
 // 鼠标进入
 const handleMouseEnter = () => {
+  isPointerInside.value = true
   if (props.trigger === 'click') return
   show()
 }
 
 // 鼠标离开
 const handleMouseLeave = () => {
+  isPointerInside.value = false
   if (props.trigger === 'click') return
   hide()
 }
@@ -170,6 +180,16 @@ watch(() => props.modelValue, (val) => {
     if (val) updatePosition()
   }
 })
+
+// 拖动结束后，若鼠标已不在组件/面板内，恢复正常的 hover 隐藏逻辑
+watch(
+  () => props.pinned,
+  (pinned) => {
+    if (!pinned && !isPointerInside.value) {
+      hide()
+    }
+  }
+)
 
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick)

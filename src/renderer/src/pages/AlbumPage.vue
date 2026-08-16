@@ -116,11 +116,13 @@ onMounted(() => {
   albumStore.init()
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
+  window.addEventListener('blur', handleWindowBlur)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
+  window.removeEventListener('blur', handleWindowBlur)
 })
 
 // 键盘事件
@@ -142,6 +144,12 @@ const handleKeyDown = (e) => {
 const handleKeyUp = (e) => {
   if (e.key === 'Control') isCtrlPressed.value = false
   if (e.key === 'Shift') isShiftPressed.value = false
+}
+
+// 窗口失焦时重置修饰键状态，避免回来出现“卡 Ctrl/Shift”
+const handleWindowBlur = () => {
+  isCtrlPressed.value = false
+  isShiftPressed.value = false
 }
 
 // 点击专辑卡片

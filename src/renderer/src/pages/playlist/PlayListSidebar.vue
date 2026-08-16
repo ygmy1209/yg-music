@@ -251,14 +251,24 @@ const handleContextMenu = (event, playlist) => {
 
   contextMenu.value = {
     show: true,
-    x: event.clientX,
-    y: event.clientY,
+    // 菜单约 110px 宽、130px 高，钳制在视口内避免贴边后溢出
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 118)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 138)),
     playlist
   }
 }
 
 const closeContextMenu = () => {
   contextMenu.value.show = false
+}
+
+// 滚动/缩放/Escape/失焦时关闭菜单，避免菜单停留在过时位置
+const handleContextMenuEscape = (e) => {
+  if (e.key === 'Escape') closeContextMenu()
+}
+
+const handleWindowEvent = () => {
+  closeContextMenu()
 }
 
 // 删除
@@ -289,10 +299,18 @@ const handleClickOutside = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleContextMenuEscape)
+  window.addEventListener('scroll', handleWindowEvent, true)
+  window.addEventListener('resize', handleWindowEvent)
+  window.addEventListener('blur', handleWindowEvent)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleContextMenuEscape)
+  window.removeEventListener('scroll', handleWindowEvent, true)
+  window.removeEventListener('resize', handleWindowEvent)
+  window.removeEventListener('blur', handleWindowEvent)
 })
 </script>
 
