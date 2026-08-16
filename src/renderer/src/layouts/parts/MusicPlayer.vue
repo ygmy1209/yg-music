@@ -1139,7 +1139,7 @@ function switchToSong(index) {
     playerStore.setCurrentSong(song)
     // loadAndPlay 会由 watch 监听 currentSong 变化自动触发
   }
-  showPlaylist.value = false
+  // 不关闭播放队列面板：连续试听/切换歌曲时保持队列可见，点击空白或 Esc 才关闭
 }
 
 function seekProgress(event) {
