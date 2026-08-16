@@ -171,6 +171,8 @@ const handleSongClick = (event, song, index) => {
 }
 
 const handlePlaySong = (song) => {
+  // 重置媒体筛选，避免之前停留在“仅视频/仅音乐”导致上一首/下一首异常
+  playerStore.setMediaFilter('all')
   playerStore.setPlaylist([...singerStore.currentSingerSongs])
   playerStore.setCurrentSingerName(singerStore.currentSinger?.name)
   playerStore.setCurrentSong(song)

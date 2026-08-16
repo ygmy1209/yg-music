@@ -179,6 +179,8 @@ const handleSongClick = (event, song, index) => {
 
 // 双击播放歌曲
 const handlePlaySong = (song) => {
+  // 重置媒体筛选，避免之前停留在“仅视频/仅音乐”导致上一首/下一首异常
+  playerStore.setMediaFilter('all')
   // 设置播放列表
   playerStore.setPlaylist([...albumStore.currentAlbumSongs])
 

@@ -6,7 +6,7 @@
 <template>
   <div class="player-bar">
     <!-- 封面图片 -->
-    <div class="cover-image" @click="playerStore.openDetail">
+    <div class="cover-image" @click="handleOpenDetail">
       <img v-if="playerStore.currentSong?.cover" :src="playerStore.currentSong.cover" alt="封面" />
       <svg v-else xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="placeholder-icon">
         <path d="M9 18V5l12-2v13"/>
@@ -172,6 +172,13 @@ const progressBarRef = ref(null)
 const volumeSliderRef = ref(null)
 // 音量拖动状态：拖动期间锁定音量气泡，避免 mouseleave 打断操作
 const isVolumeDragging = ref(false)
+
+// 有歌曲时才打开播放详情页，避免出现空白播放器
+const handleOpenDetail = () => {
+  if (playerStore.currentSong) {
+    playerStore.openDetail()
+  }
+}
 
 // 进度条点击
 const handleProgressClick = (e) => {

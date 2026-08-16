@@ -225,7 +225,9 @@ watch(activeNav, () => {
   padding: 0 0 20px 0;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  // 小窗口/长内容时允许在弹窗内部滚动，而不是被裁掉
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 // 遮罩过渡动画 - 缓慢出现
