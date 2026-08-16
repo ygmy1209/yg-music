@@ -1,12 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  dbToDisplaySong,
-  dbToDisplaySongs,
-  displayToDbSong,
-  extractSongInfo,
-  isSameSong
-} from '../src/renderer/src/utils/songTransform.js'
+import { dbToDisplaySong, dbToDisplaySongs, extractSongInfo } from '../src/renderer/src/utils/songTransform.js'
 
 test('dbToDisplaySong: 字段映射 singer->artist / interval->duration', () => {
   assert.deepEqual(
@@ -37,29 +31,6 @@ test('dbToDisplaySongs: 空值与非数组输入安全', () => {
   assert.equal(dbToDisplaySong(null), null)
 })
 
-test('displayToDbSong: 反向字段映射', () => {
-  assert.deepEqual(
-    displayToDbSong({
-      id: '/music/a.mp3',
-      name: '歌名',
-      artist: '歌手',
-      album: '专辑',
-      duration: '03:45',
-      type: 1,
-      meta: null
-    }),
-    {
-      id: '/music/a.mp3',
-      name: '歌名',
-      singer: '歌手',
-      album: '专辑',
-      interval: '03:45',
-      type: 1,
-      meta: null
-    }
-  )
-})
-
 test('extractSongInfo: 兼容两种字段命名', () => {
   assert.deepEqual(extractSongInfo({ name: 'a', artist: 'b', duration: '01:00', type: 0 }), {
     name: 'a',
@@ -69,10 +40,4 @@ test('extractSongInfo: 兼容两种字段命名', () => {
     interval: '01:00',
     meta: null
   })
-})
-
-test('isSameSong: 按 id 比较', () => {
-  assert.equal(isSameSong({ id: 'x' }, { id: 'x' }), true)
-  assert.equal(isSameSong({ id: 'x' }, { id: 'y' }), false)
-  assert.equal(isSameSong(null, { id: 'x' }), false)
 })

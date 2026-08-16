@@ -5,8 +5,7 @@ const windowAPI = {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   fullscreen: () => ipcRenderer.send('window-fullscreen'),
-  close: () => ipcRenderer.send('window-close'),
-  isMaximized: () => ipcRenderer.invoke('window-is-maximized')
+  close: () => ipcRenderer.send('window-close')
 }
 
 // ========== 数据库 API ==========

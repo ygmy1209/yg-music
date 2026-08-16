@@ -76,12 +76,6 @@ export const registerWindowHandlers = () => {
     }
   })
 
-  // 获取窗口最大化状态
-  ipcMain.handle('window-is-maximized', () => {
-    if (mainWindow) return mainWindow.isMaximized()
-    return false
-  })
-
   // 调整窗口尺寸
   ipcMain.handle('window:resize', (event, sizeIndex) => {
     if (mainWindow) {

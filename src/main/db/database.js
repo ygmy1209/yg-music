@@ -376,19 +376,6 @@ export const updateSongsOrder = (listId, songIds) => {
 }
 
 /**
- * 检查文件是否为支持的音频/视频格式
- */
-export const isMediaFile = (filePath) => {
-  const ext = path.extname(filePath).toLowerCase()
-  const audioExts = ['.mp3', '.flac', '.wav', '.aac', '.ogg', '.wma', '.m4a']
-  const videoExts = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
-  return {
-    isMedia: audioExts.includes(ext) || videoExts.includes(ext),
-    type: videoExts.includes(ext) ? 1 : 0 // 0=音乐, 1=视频
-  }
-}
-
-/**
  * 更新歌曲信息
  * @param {string} songId - 歌曲ID（文件路径）
  * @param {object} updates - 更新的字段 { name?, singer?, album? }
@@ -600,7 +587,6 @@ export default {
   removeSongFromPlaylist,
   updateSongsOrder,
   updateSongInfo,
-  isMediaFile,
   getAllAlbums,
   getSongsByAlbum,
   getAllSingers,

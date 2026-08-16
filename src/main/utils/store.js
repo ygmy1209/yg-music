@@ -161,5 +161,3 @@ export const getStore = (name) => {
   }
   return storeCache.get(name)
 }
-
-export default Store

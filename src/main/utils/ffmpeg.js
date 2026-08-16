@@ -289,9 +289,3 @@ export const getVideoDetailedInfo = (filePath) => {
     })
   })
 }
-
-export default {
-  getVideoMetadata,
-  getVideoDetailedInfo,
-  isSupportedMedia
-}
