@@ -292,6 +292,11 @@ export const usePlaylistStore = defineStore('playlist', () => {
     }
   }
 
+  // 退出搜索筛选状态（保留关键词，显示全部歌曲）
+  const exitSearchFilter = () => {
+    isSearchFiltered.value = false
+  }
+
   // 高亮并滚动到歌曲
   const highlightSong = (songId) => {
     highlightedSongId.value = songId
@@ -359,6 +364,7 @@ export const usePlaylistStore = defineStore('playlist', () => {
     setSearchKeyword,
     setSearchFocused,
     applySearchFilter,
+    exitSearchFilter,
     highlightSong,
     clearSearch,
     clearHighlight,

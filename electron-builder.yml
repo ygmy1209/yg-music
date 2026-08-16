@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: com.yg-music
 productName: yg-music
 directories:
   buildResources: build

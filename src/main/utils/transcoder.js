@@ -239,7 +239,7 @@ export async function transcodeVideo(inputPath, outputPath = null, onProgress = 
     command
       .videoCodec('copy')
       .audioCodec('flac')
-      .output(cachePath.replace('.mp4', '.mkv'))
+      .output(cachePath)
 
     // 进度回调
     if (onProgress) {
