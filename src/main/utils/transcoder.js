@@ -16,17 +16,30 @@ let ffmpegPath = null
 let ffprobePath = null
 let initPromise = null
 
+/**
+ * 打包后 ffmpeg/ffprobe 会被解包到 app.asar.unpacked 目录，
+ * 而安装包返回的路径指向 app.asar 内部，直接 spawn 会 ENOENT。
+ * 这里与 utils/ffmpeg.js 保持一致的路径修正；
+ * 开发环境下路径不含 app.asar，此函数不会改变任何东西。
+ */
+const getRealPath = (originalPath) => {
+  if (typeof originalPath === 'string' && originalPath.includes('app.asar')) {
+    return originalPath.replace('app.asar', 'app.asar.unpacked')
+  }
+  return originalPath
+}
+
 // 异步初始化函数
 async function initPaths() {
   try {
     // 尝试加载 @ffmpeg-installer/ffmpeg
     const ffmpegInstaller = await import('@ffmpeg-installer/ffmpeg')
-    ffmpegPath = ffmpegInstaller.default?.path || ffmpegInstaller.default
+    ffmpegPath = getRealPath(ffmpegInstaller.default?.path || ffmpegInstaller.default)
     console.log('[转码器] ffmpeg 路径:', ffmpegPath)
 
     // 尝试加载 @ffprobe-installer/ffprobe
     const ffprobeInstaller = await import('@ffprobe-installer/ffprobe')
-    ffprobePath = ffprobeInstaller.default?.path || ffprobeInstaller.default
+    ffprobePath = getRealPath(ffprobeInstaller.default?.path || ffprobeInstaller.default)
     console.log('[转码器] ffprobe 路径:', ffprobePath)
   } catch (e) {
     console.warn('[转码器] 无法加载 ffmpeg/ffprobe 路径:', e.message)
