@@ -1,5 +1,5 @@
 appId: com.yg-music
-productName: yg-music
+productName: YG Music
 directories:
   buildResources: build
 files:
@@ -11,7 +11,7 @@ files:
   - '!dev-resources/*'
   - '!.claude/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.eslintcache,eslint.config.mjs,postcss.config.js,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
 asarUnpack:
   - resources/**
@@ -19,6 +19,11 @@ asarUnpack:
   - node_modules/@ffprobe-installer/**/*
 win:
   executableName: yg-music
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
@@ -26,11 +31,15 @@ nsis:
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
-  createDesktopShortcut: always
+  createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: ${productName}
   artifactName: ${name}-${version}-setup.${ext}
   uninstallDisplayName: ${productName}
+  include: build/installer.nsh
+  multiLanguageInstaller: true
+  installerLanguages:
+    - zh_CN
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
